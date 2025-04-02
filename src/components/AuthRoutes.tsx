@@ -7,15 +7,15 @@ import { useRole } from '../context/RoleContext';
 
 const AuthRoutes: React.FC = () => {
   const { user, signOut } = useAuthenticator();
-  const { userRole, setUserRole } = useRole();
+  const { userRole, clearUserRole } = useRole();
   
   // Clear role when user signs out
   useEffect(() => {
     if (!user) {
       // User signed out, clear their role
-      setUserRole('');
+      clearUserRole();
     }
-  }, [user, setUserRole]);
+  }, [user, clearUserRole]);
 
   // If not authenticated, render nothing (Authenticator will handle this)
   if (!user) {

@@ -5,7 +5,7 @@ import { useRole } from '../context/RoleContext';
 import './RoleSelector.css';
 
 const RoleSelector: React.FC = () => {
-  const [selectedRole, setSelectedRole] = useState<string>('PROFESSIONALS');
+  const [selectedRole, setSelectedRole] = useState<string>('PROFESSIONALS'); // Default role
   const { signOut } = useAuthenticator();
   const { setUserRole, userRole } = useRole();
   const navigate = useNavigate();
@@ -13,6 +13,14 @@ const RoleSelector: React.FC = () => {
   // If user already has a role, redirect to app
   useEffect(() => {
     if (userRole) {
+      navigate('/app');
+    }
+  }, [userRole, navigate]);
+
+  useEffect(() => {
+    console.log('Current userRole:', userRole);
+    if (userRole) {
+      console.log('Navigating to app');
       navigate('/app');
     }
   }, [userRole, navigate]);
