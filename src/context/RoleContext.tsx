@@ -22,7 +22,7 @@ export const RoleProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return localStorage.getItem('userRole');
   });
 
-  // Function to set user role and save to session storage
+  // Function to set user role and save to storage
   const setUserRole = (role: string) => {
     // Ensure the role is one of the valid roles
     if (role !== 'DIRECTORS' && role !== 'PROFESSIONALS') {
@@ -30,13 +30,14 @@ export const RoleProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
     
-    // Store in localStorage for persistence across browser sessions
+    // Store in localStorage 
     localStorage.setItem('userRole', role);
     setUserRoleState(role);
   };
 
   // Function to clear user role
   const clearUserRole = () => {
+    // Remove from localStorage
     localStorage.removeItem('userRole');
     setUserRoleState(null);
   };

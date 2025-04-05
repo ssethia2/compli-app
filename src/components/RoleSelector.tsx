@@ -7,30 +7,15 @@ import './RoleSelector.css';
 const RoleSelector: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<string>('PROFESSIONALS'); // Default role
   const { signOut } = useAuthenticator();
-  const { setUserRole, userRole } = useRole();
+  const { setUserRole } = useRole();
   const navigate = useNavigate();
-  
-  // If user already has a role, redirect to app
-  useEffect(() => {
-    if (userRole) {
-      navigate('/app');
-    }
-  }, [userRole, navigate]);
-
-  useEffect(() => {
-    console.log('Current userRole:', userRole);
-    if (userRole) {
-      console.log('Navigating to app');
-      navigate('/app');
-    }
-  }, [userRole, navigate]);
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedRole(e.target.value);
   };
 
   const handleContinue = () => {
-    // Update role in context (which also updates session storage)
+    // Update role in context (which also updates localStorage)
     setUserRole(selectedRole);
     // Navigate to the main app
     navigate('/app');

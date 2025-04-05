@@ -7,13 +7,17 @@ import { useRole } from '../context/RoleContext';
 
 const AuthRoutes: React.FC = () => {
   const { user, signOut } = useAuthenticator();
-  const { userRole, clearUserRole } = useRole();
+  const { clearUserRole } = useRole();
   
   // Clear role when user signs out
   useEffect(() => {
     if (!user) {
       // User signed out, clear their role
       clearUserRole();
+      
+      // Additional cleanup
+      localStorage.clear();
+      sessionStorage.clear();
     }
   }, [user, clearUserRole]);
 
@@ -31,7 +35,7 @@ const AuthRoutes: React.FC = () => {
       <Route 
         path="/app" 
         element={
-          userRole ? <App /> : <Navigate to="/select-role" replace />
+          localStorage.getItem('userRole') ? <App /> : <Navigate to="/select-role" replace />
         } 
       />
       
@@ -39,7 +43,7 @@ const AuthRoutes: React.FC = () => {
       <Route 
         path="*" 
         element={
-          userRole ? <Navigate to="/app" replace /> : <Navigate to="/select-role" replace />
+          localStorage.getItem('userRole') ? <Navigate to="/app" replace /> : <Navigate to="/select-role" replace />
         } 
       />
     </Routes>
