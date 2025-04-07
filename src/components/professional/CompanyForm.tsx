@@ -1,7 +1,7 @@
 // src/components/professional/CompanyForm.tsx
 import React, { useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 import './Forms.css';
 
 const client = generateClient<Schema>();
