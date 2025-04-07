@@ -1,3 +1,4 @@
+// src/main.tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Authenticator } from '@aws-amplify/ui-react';
@@ -6,19 +7,19 @@ import { Amplify } from "aws-amplify";
 import outputs from "../amplify_outputs.json";
 import '@aws-amplify/ui-react/styles.css';
 import { BrowserRouter } from 'react-router-dom';
-import { RoleProvider } from "./context/RoleContext";
-import AuthRoutes from "./components/AuthRoutes";
+import App from "./App";
 
 Amplify.configure(outputs);
 
+// Simple main file without complex state management
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <RoleProvider>
-        <Authenticator>
-          <AuthRoutes />
-        </Authenticator>
-      </RoleProvider>
+      <Authenticator>
+        {({ signOut, user }) => (
+          <App signOut={signOut} user={user} />
+        )}
+      </Authenticator>
     </BrowserRouter>
   </React.StrictMode>
 );

@@ -1,3 +1,4 @@
+// src/context/RoleContext.tsx
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 type RoleContextType = {
@@ -17,28 +18,19 @@ const RoleContext = createContext<RoleContextType>({
 });
 
 export const RoleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [userRole, setUserRoleState] = useState<string | null>(() => {
-    // Initialize from localStorage for persistence across browser sessions
-    return localStorage.getItem('userRole');
-  });
+  const [userRole, setUserRoleState] = useState<string | null>(null);
 
-  // Function to set user role and save to storage
+  // Function to set user role
   const setUserRole = (role: string) => {
-    // Ensure the role is one of the valid roles
     if (role !== 'DIRECTORS' && role !== 'PROFESSIONALS') {
       console.error('Invalid role selected');
       return;
     }
-    
-    // Store in localStorage 
-    localStorage.setItem('userRole', role);
     setUserRoleState(role);
   };
 
   // Function to clear user role
   const clearUserRole = () => {
-    // Remove from localStorage
-    localStorage.removeItem('userRole');
     setUserRoleState(null);
   };
 

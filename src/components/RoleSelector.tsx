@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { useRole } from '../context/RoleContext';
@@ -15,10 +15,32 @@ const RoleSelector: React.FC = () => {
   };
 
   const handleContinue = () => {
-    // Update role in context (which also updates localStorage)
+    // Set role in context
     setUserRole(selectedRole);
+    
+    // Also store in localStorage for persistence
+    localStorage.setItem('userRole', selectedRole);
+    console.log('Role selected and stored:', selectedRole);
+    
     // Navigate to the main app
     navigate('/app');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      // Clear role data first
+      localStorage.removeItem('userRole');
+      console.log('Role cleared from localStorage');
+      
+      // Then sign out via Amplify
+      await signOut();
+      console.log('Signed out successfully');
+      
+      // Force reload the page to reset the Auth UI
+      window.location.reload();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+    }
   };
 
   return (
@@ -62,7 +84,7 @@ const RoleSelector: React.FC = () => {
         <button 
           type="button" 
           className="sign-out-button"
-          onClick={signOut}
+          onClick={handleSignOut}
         >
           Sign Out
         </button>
