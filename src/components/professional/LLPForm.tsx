@@ -1,9 +1,10 @@
 // src/components/professional/LLPForm.tsx
 import React, { useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 import './Forms.css';
 
+// Initialize the data client
 const client = generateClient<Schema>();
 
 interface LLPFormProps {
@@ -50,8 +51,11 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
     setError('');
     
     try {
+      console.log('Creating LLP with data:', formData);
+      
       // Create the LLP record
-      await client.models.LLP.create(formData);
+      const result = await client.models.LLP.create(formData);
+      console.log('LLP created successfully:', result);
       
       // Reset form
       setFormData({
@@ -75,7 +79,7 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
       alert('LLP created successfully!');
     } catch (err) {
       console.error('Error creating LLP:', err);
-      setError('Failed to create LLP. Please try again.');
+      setError(`Failed to create LLP: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }

@@ -1,10 +1,10 @@
 // src/App.tsx
 import React, { useState, useEffect } from "react";
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from './amplify/data/resource';
+import type { Schema } from '../amplify/data/resource';
 import "./App.css";
 
-// Import dashboard components - we'll create these next
+// Import dashboard components
 import ProfessionalDashboard from "./components/professional/ProfessionalDashboard";
 
 // Initialize the data client

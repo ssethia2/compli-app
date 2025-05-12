@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import type { Schema } from '../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 import CompanyForm from './CompanyForm';
 import LLPForm from './LLPForm';
 import AssociateDirectorForm from './AssociateDirectorForm';

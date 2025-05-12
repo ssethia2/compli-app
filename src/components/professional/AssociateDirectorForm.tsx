@@ -1,9 +1,10 @@
 // src/components/professional/AssociateDirectorForm.tsx
 import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 import './Forms.css';
 
+// Initialize the data client
 const client = generateClient<Schema>();
 
 interface AssociateDirectorFormProps {
@@ -39,8 +40,12 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Fetching companies and LLPs...');
+        
         // Fetch companies
         const companiesResult = await client.models.Company.list();
+        console.log('Companies fetched:', companiesResult.data);
+        
         const companyOptions = companiesResult.data.map(company => ({
           id: company.cinNumber,
           name: company.companyName,
@@ -49,6 +54,8 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         
         // Fetch LLPs
         const llpsResult = await client.models.LLP.list();
+        console.log('LLPs fetched:', llpsResult.data);
+        
         const llpOptions = llpsResult.data.map(llp => ({
           id: llp.llpIN,
           name: llp.llpName,
@@ -66,6 +73,7 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
             }
           }
         });
+        console.log('Directors fetched:', usersResult.data);
         
         setDirectors(usersResult.data);
         
@@ -105,6 +113,8 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
     setError('');
     
     try {
+      console.log('Creating director association with data:', formData);
+      
       // Check if association already exists
       const existingAssociations = await client.models.DirectorAssociation.list({
         filter: {
@@ -122,13 +132,15 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
       }
       
       // Create the association
-      await client.models.DirectorAssociation.create({
+      const result = await client.models.DirectorAssociation.create({
         userId: formData.userId,
         entityId: formData.entityId,
         entityType: formData.entityType,
         associationType: formData.associationType,
         appointmentDate: formData.appointmentDate ? new Date(formData.appointmentDate).toISOString() : new Date().toISOString()
       });
+      
+      console.log('Director association created successfully:', result);
       
       // Reset form
       setFormData({
@@ -147,7 +159,7 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
       alert('Director association created successfully!');
     } catch (err) {
       console.error('Error creating association:', err);
-      setError('Failed to create association. Please try again.');
+      setError(`Failed to create association: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }

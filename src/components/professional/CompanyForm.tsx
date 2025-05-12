@@ -4,14 +4,34 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import './Forms.css';
 
+// Initialize the data client
 const client = generateClient<Schema>();
+
+// Define the exact types from the schema
+type CompanyStatus = 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS';
+type CompanyType = 'PRIVATE' | 'PUBLIC' | 'ONE_PERSON' | 'SECTION_8';
 
 interface CompanyFormProps {
   onSuccess?: () => void;
 }
 
+// Create a type-safe form state
+interface CompanyFormState {
+  cinNumber: string;
+  companyName: string;
+  rocName: string;
+  dateOfIncorporation: string;
+  emailId: string;
+  registeredAddress: string;
+  authorizedCapital: number;
+  paidUpCapital: number;
+  numberOfDirectors: number;
+  companyStatus: CompanyStatus;
+  companyType: CompanyType;
+}
+
 const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CompanyFormState>({
     cinNumber: '',
     companyName: '',
     rocName: '',
@@ -37,6 +57,18 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
         ...formData,
         [name]: parseFloat(value) || 0
       });
+    } else if (name === 'companyStatus') {
+      // Ensure companyStatus is one of the allowed values
+      setFormData({
+        ...formData,
+        companyStatus: value as CompanyStatus
+      });
+    } else if (name === 'companyType') {
+      // Ensure companyType is one of the allowed values
+      setFormData({
+        ...formData,
+        companyType: value as CompanyType
+      });
     } else {
       setFormData({
         ...formData,
@@ -51,8 +83,24 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
     setError('');
     
     try {
+      console.log('Creating company with data:', formData);
+      
       // Create the company record
-      await client.models.Company.create(formData);
+      const result = await client.models.Company.create({
+        cinNumber: formData.cinNumber,
+        companyName: formData.companyName,
+        rocName: formData.rocName || undefined,
+        dateOfIncorporation: formData.dateOfIncorporation || undefined,
+        emailId: formData.emailId || undefined,
+        registeredAddress: formData.registeredAddress || undefined,
+        authorizedCapital: formData.authorizedCapital || undefined,
+        paidUpCapital: formData.paidUpCapital || undefined,
+        numberOfDirectors: formData.numberOfDirectors || undefined,
+        companyStatus: formData.companyStatus,
+        companyType: formData.companyType
+      });
+      
+      console.log('Company created successfully:', result);
       
       // Reset form
       setFormData({
@@ -77,7 +125,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
       alert('Company created successfully!');
     } catch (err) {
       console.error('Error creating company:', err);
-      setError('Failed to create company. Please try again.');
+      setError(`Failed to create company: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
