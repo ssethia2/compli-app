@@ -10,7 +10,7 @@ import ProfessionalDashboard from "./components/professional/ProfessionalDashboa
 // Initialize the data client
 const client = generateClient<Schema>();
 
-function App({ signOut, user }) {
+function App({ signOut, user } : {signOut:any, user: any} ) {
   const [role, setRole] = useState(() => {
     // Initialize from localStorage if available
     return localStorage.getItem('userRole') || null;

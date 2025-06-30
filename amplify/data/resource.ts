@@ -76,7 +76,7 @@ const schema = a.schema({
     entityType: a.enum(['LLP', 'COMPANY']),
     changeType: a.enum(['UPDATE_INFO', 'ADD_DIRECTOR', 'REMOVE_DIRECTOR', 'STATUS_CHANGE', 'OTHER']),
     requestDetails: a.string().required(),
-    status: a.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']).default('PENDING'),
+    status: a.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']),
     createdAt: a.datetime(),
     updatedAt: a.datetime(),
     processedBy: a.string(), // ID of professional who processed the request
