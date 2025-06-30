@@ -14,17 +14,14 @@ interface AssociateDirectorFormProps {
 interface EntityOption {
   id: string;
   name: string;
+  identifier: string; // CIN or LLPIN
   type: 'COMPANY' | 'LLP';
 }
 
-interface UserOption {
-  userId: string;
-  displayName: string;
-}
 
 const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess }) => {
   const [formData, setFormData] = useState({
-    userId: '',
+    directorEmail: '',
     entityId: '',
     entityType: 'COMPANY',
     associationType: 'DIRECTOR',
@@ -32,9 +29,45 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
   });
   
   const [entities, setEntities] = useState<EntityOption[]>([]);
-  const [directors, setDirectors] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Function to find or create UserProfile by email
+  const findOrCreateDirectorByEmail = async (email: string): Promise<string> => {
+    try {
+      // First, try to find existing UserProfile by email
+      const existingUsers = await client.models.UserProfile.list({
+        filter: {
+          email: { eq: email.toLowerCase().trim() }
+        }
+      });
+      
+      if (existingUsers.data.length > 0) {
+        console.log('Found existing director:', existingUsers.data[0]);
+        return existingUsers.data[0].userId;
+      }
+      
+      // If not found, create new UserProfile
+      console.log('Creating new director profile for:', email);
+      const newUser = await client.models.UserProfile.create({
+        userId: `director-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`, // Generate unique ID
+        email: email.toLowerCase().trim(),
+        role: 'DIRECTORS',
+        displayName: email.split('@')[0] // Use email prefix as default display name
+      });
+      
+      if (!newUser.data) {
+        throw new Error('Failed to create user profile');
+      }
+      
+      console.log('Created new director profile:', newUser.data);
+      return newUser.data.userId;
+      
+    } catch (error) {
+      console.error('Error finding/creating director:', error);
+      throw new Error(`Failed to process director email: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   
   // Fetch entities and directors on component mount
   useEffect(() => {
@@ -47,8 +80,9 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         console.log('Companies fetched:', companiesResult.data);
         
         const companyOptions = companiesResult.data.map(company => ({
-          id: company.cinNumber,
+          id: company.id,
           name: company.companyName,
+          identifier: company.cinNumber,
           type: 'COMPANY' as const
         }));
         
@@ -57,25 +91,16 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         console.log('LLPs fetched:', llpsResult.data);
         
         const llpOptions = llpsResult.data.map(llp => ({
-          id: llp.llpIN,
+          id: llp.id,
           name: llp.llpName,
+          identifier: llp.llpIN,
           type: 'LLP' as const
         }));
         
         // Combine entities
         setEntities([...companyOptions, ...llpOptions]);
         
-        // Fetch users with DIRECTORS role
-        const usersResult = await client.models.UserProfile.list({
-          filter: {
-            role: {
-              eq: 'DIRECTORS'
-            }
-          }
-        });
-        console.log('Directors fetched:', usersResult.data);
-        
-        setDirectors(usersResult.data);
+        // Note: We no longer pre-fetch directors since we'll use email lookup
         
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -115,11 +140,21 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
     try {
       console.log('Creating director association with data:', formData);
       
+      // Validate email
+      if (!formData.directorEmail || !formData.directorEmail.includes('@')) {
+        setError('Please enter a valid email address.');
+        setLoading(false);
+        return;
+      }
+      
+      // Find or create director UserProfile
+      const directorUserId = await findOrCreateDirectorByEmail(formData.directorEmail);
+      
       // Check if association already exists
       const existingAssociations = await client.models.DirectorAssociation.list({
         filter: {
           and: [
-            { userId: { eq: formData.userId } },
+            { userId: { eq: directorUserId } },
             { entityId: { eq: formData.entityId } }
           ]
         }
@@ -133,18 +168,19 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
       
       // Create the association
       const result = await client.models.DirectorAssociation.create({
-        userId: formData.userId,
+        userId: directorUserId,
         entityId: formData.entityId,
-        entityType: formData.entityType,
-        associationType: formData.associationType,
-        appointmentDate: formData.appointmentDate ? new Date(formData.appointmentDate).toISOString() : new Date().toISOString()
+        entityType: formData.entityType as 'COMPANY' | 'LLP',
+        associationType: formData.associationType as 'DIRECTOR' | 'DESIGNATED_PARTNER' | 'PARTNER',
+        appointmentDate: formData.appointmentDate ? formData.appointmentDate : new Date().toISOString().split('T')[0],
+        isActive: true
       });
       
       console.log('Director association created successfully:', result);
       
       // Reset form
       setFormData({
-        userId: '',
+        directorEmail: '',
         entityId: '',
         entityType: 'COMPANY',
         associationType: 'DIRECTOR',
@@ -173,21 +209,19 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="userId">Director *</label>
-          <select
-            id="userId"
-            name="userId"
-            value={formData.userId}
+          <label htmlFor="directorEmail">Director Email *</label>
+          <input
+            type="email"
+            id="directorEmail"
+            name="directorEmail"
+            value={formData.directorEmail}
             onChange={handleChange}
+            placeholder="director@company.com"
             required
-          >
-            <option value="">Select a Director</option>
-            {directors.map(director => (
-              <option key={director.userId} value={director.userId}>
-                {director.displayName || director.userId}
-              </option>
-            ))}
-          </select>
+          />
+          <small className="field-hint">
+            If the director doesn't have an account yet, we'll create one for them.
+          </small>
         </div>
         
         <div className="form-group">
@@ -205,7 +239,7 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
                 .filter(entity => entity.type === 'COMPANY')
                 .map(company => (
                   <option key={company.id} value={company.id}>
-                    {company.name}
+                    {company.name} (CIN: {company.identifier})
                   </option>
                 ))}
             </optgroup>
@@ -214,7 +248,7 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
                 .filter(entity => entity.type === 'LLP')
                 .map(llp => (
                   <option key={llp.id} value={llp.id}>
-                    {llp.name}
+                    {llp.name} (LLPIN: {llp.identifier})
                   </option>
                 ))}
             </optgroup>

@@ -1,39 +1,36 @@
+// amplify/data/resource.ts - Simplified version
+// TODO: CLEANUP SPRINT - Fix authorization properly before release:
+// 1. Implement Lambda trigger for automatic Cognito group assignment (see auto-group-assignment artifacts)
+// 2. Restore proper group-based authorization instead of allow.authenticated()
+// 3. Test role-based permissions thoroughly
+// 4. Consider implementing API-level role checks as additional security layer
+// 5. Remove this temporary simplified auth and use proper Cognito groups
+// amplify/data/resource.ts - Many-to-Many Professional-Entity Relationships
+// TODO: CLEANUP SPRINT - Fix authorization properly before release (see previous TODOs)
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 
 const schema = a.schema({
   // User Profile model
   UserProfile: a.model({
     userId: a.string().required(),
+    email: a.string().required(),
     role: a.enum(['DIRECTORS', 'PROFESSIONALS']),
-    displayName: a.string()
+    displayName: a.string(),
+    
+    // RELATIONSHIPS
+    // For professionals - their entity assignments
+    professionalAssignments: a.hasMany('ProfessionalAssignment', 'professionalId'),
+    // For directors - their entity associations  
+    directorAssociations: a.hasMany('DirectorAssociation', 'userId'),
+    // Change requests made by this user
+    changeRequests: a.hasMany('ChangeRequest', 'directorId')
   }).authorization(
     allow => [
-      allow.owner(),
-      allow.groups(['DIRECTORS']).to(['read']), 
-      allow.groups(['PROFESSIONALS']).to(['read', 'create', 'update', 'delete'])
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
     ]
   ),
 
-  // LLP model
-  LLP: a.model({
-    llpIN: a.string().required(),
-    llpName: a.string().required(),
-    rocName: a.string(),
-    dateOfIncorporation: a.date(),
-    emailId: a.string(),
-    numberOfPartners: a.integer(),
-    numberOfDesignatedPartners: a.integer(),
-    registeredAddress: a.string(),
-    totalObligationOfContribution: a.float(),
-    llpStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS'])
-  }).authorization(
-    allow => [
-      allow.groups(['DIRECTORS']).to(['read']),
-      allow.groups(['PROFESSIONALS']).to(['read', 'create', 'update', 'delete'])
-    ]
-  ),
-
-  // Company model 
+  // Company model - simplified relationships  
   Company: a.model({
     cinNumber: a.string().required(),
     companyName: a.string().required(),
@@ -46,29 +43,73 @@ const schema = a.schema({
     numberOfDirectors: a.integer(),
     companyStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS']),
     companyType: a.enum(['PRIVATE', 'PUBLIC', 'ONE_PERSON', 'SECTION_8'])
+    
+    // Note: We'll handle relationships via queries rather than direct hasMany
+    // This avoids the polymorphic relationship complexity
   }).authorization(
     allow => [
-      allow.groups(['DIRECTORS']).to(['read']),
-      allow.groups(['PROFESSIONALS']).to(['read', 'create', 'update', 'delete'])
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
     ]
   ),
 
-  // Mapping table for User-Company/LLP relationships
+  // LLP model - simplified relationships
+  LLP: a.model({
+    llpIN: a.string().required(),
+    llpName: a.string().required(),
+    rocName: a.string(),
+    dateOfIncorporation: a.date(),
+    emailId: a.string(),
+    numberOfPartners: a.integer(),
+    numberOfDesignatedPartners: a.integer(),
+    registeredAddress: a.string(),
+    totalObligationOfContribution: a.float(),
+    llpStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS'])
+    
+    // Note: We'll handle relationships via queries rather than direct hasMany
+    // This avoids the polymorphic relationship complexity
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+    ]
+  ),
+
+  // JUNCTION TABLE: Professional-Entity Assignment (Many-to-Many)
+  ProfessionalAssignment: a.model({
+    professionalId: a.string().required(),
+    entityId: a.string().required(),
+    entityType: a.enum(['LLP', 'COMPANY']),
+    assignedDate: a.date(),
+    isActive: a.boolean().default(true),
+    role: a.enum(['PRIMARY', 'SECONDARY', 'REVIEWER']), // Different professional roles
+    
+    // RELATIONSHIPS - only to UserProfile
+    professional: a.belongsTo('UserProfile', 'professionalId')
+    // We'll handle Company/LLP relationships via queries using entityId + entityType
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+    ]
+  ),
+
+  // JUNCTION TABLE: Director-Entity Association (Many-to-Many)
   DirectorAssociation: a.model({
     userId: a.string().required(),
     entityId: a.string().required(),
     entityType: a.enum(['LLP', 'COMPANY']),
-    associationType: a.enum(['DIRECTOR', 'DESIGNATED_PARTNER', 'PARTNER', 'PROFESSIONAL']),
-    appointmentDate: a.date()
+    associationType: a.enum(['DIRECTOR', 'DESIGNATED_PARTNER', 'PARTNER']),
+    appointmentDate: a.date(),
+    isActive: a.boolean().default(true),
+    
+    // RELATIONSHIPS - only to UserProfile
+    director: a.belongsTo('UserProfile', 'userId')
+    // We'll handle Company/LLP relationships via queries using entityId + entityType
   }).authorization(
     allow => [
-      allow.owner(),
-      allow.groups(['DIRECTORS']).to(['read']),
-      allow.groups(['PROFESSIONALS']).to(['read', 'create', 'update', 'delete'])
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
     ]
   ),
 
-  // New model for Director-initiated change requests
+  // Change Request model
   ChangeRequest: a.model({
     requestId: a.id(),
     directorId: a.string().required(),
@@ -79,13 +120,14 @@ const schema = a.schema({
     status: a.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']),
     createdAt: a.datetime(),
     updatedAt: a.datetime(),
-    processedBy: a.string(), // ID of professional who processed the request
-    comments: a.string()
+    processedBy: a.string(), // Professional who processed it
+    comments: a.string(),
+    
+    // RELATIONSHIPS
+    requestor: a.belongsTo('UserProfile', 'directorId')
   }).authorization(
     allow => [
-      allow.owner(),
-      allow.groups(['DIRECTORS']).to(['read', 'create']), // Directors can create and read requests
-      allow.groups(['PROFESSIONALS']).to(['read', 'create', 'update', 'delete']) // Professionals can do everything
+      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
     ]
   )
 });
@@ -98,6 +140,7 @@ export const data = defineData({
     defaultAuthorizationMode: "userPool",
   },
 });
+
 
 /*== STEP 2 ===============================================================
 Go to your frontend source code. From your client-side code, generate a

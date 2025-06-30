@@ -8,7 +8,7 @@ import './Forms.css';
 const client = generateClient<Schema>();
 
 interface LLPFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (llpId: string) => void;
 }
 
 const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
@@ -71,9 +71,10 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
         llpStatus: 'ACTIVE'
       });
       
-      // Call success callback if provided
-      if (onSuccess) {
-        onSuccess();
+      // Call success callback if provided with LLP ID
+      const createdLlpId = result.data?.llpIN;
+      if (onSuccess && createdLlpId) {
+        onSuccess(createdLlpId);
       }
       
       alert('LLP created successfully!');
