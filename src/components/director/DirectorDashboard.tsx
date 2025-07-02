@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
+import NameReservationForm from './NameReservationForm';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -14,6 +15,15 @@ const DirectorDashboard: React.FC = () => {
   const [companies, setCompanies] = useState<any[]>([]);
   const [llps, setLlps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tempEntities, setTempEntities] = useState<any[]>([]);
+  const [professionalAssignments, setProfessionalAssignments] = useState<any[]>([]);
+  const [showNameReservation, setShowNameReservation] = useState<{
+    show: boolean;
+    entityType: 'COMPANY' | 'LLP' | null;
+  }>({ show: false, entityType: null });
+  
+  // Store professional lookup map for associations display
+  const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
   
   // Fetch director's associations and related entities
   const fetchDirectorData = async () => {
@@ -96,6 +106,9 @@ const DirectorDashboard: React.FC = () => {
       console.log('Associated companies:', associatedCompanies);
       console.log('Associated LLPs:', associatedLLPs);
       
+      // 6. Fetch professional assignments for director's entities
+      await fetchProfessionalAssignments([...companyIds, ...llpIds]);
+      
       setAssociations(directorAssociations);
       setCompanies(associatedCompanies);
       setLlps(associatedLLPs);
@@ -107,9 +120,125 @@ const DirectorDashboard: React.FC = () => {
     }
   };
   
+  // Fetch professional assignments for the director's entities
+  const fetchProfessionalAssignments = async (entityIds: string[]) => {
+    if (entityIds.length === 0) return;
+    
+    try {
+      console.log('Fetching professional assignments for entities:', entityIds);
+      
+      // Get all professional assignments for these entities
+      const assignmentsResult = await client.models.ProfessionalAssignment.list({
+        filter: {
+          and: [
+            {
+              or: entityIds.map(entityId => ({ entityId: { eq: entityId } }))
+            },
+            { isActive: { eq: true } }
+          ]
+        }
+      });
+      
+      const assignments = assignmentsResult.data;
+      console.log('Professional assignments found:', assignments);
+      
+      // Build professional lookup map
+      const professionalMap = new Map();
+      const uniqueProfessionalIds = [...new Set(assignments.map(assign => assign.professionalId))];
+      
+      for (const professionalId of uniqueProfessionalIds) {
+        try {
+          const professionalResult = await client.models.UserProfile.list({
+            filter: { userId: { eq: professionalId } }
+          });
+          
+          if (professionalResult.data && professionalResult.data.length > 0) {
+            const professional = professionalResult.data[0];
+            professionalMap.set(professionalId, {
+              email: professional.email,
+              displayName: professional.displayName,
+              userId: professional.userId
+            });
+          } else {
+            professionalMap.set(professionalId, { 
+              email: 'Professional profile not found', 
+              displayName: null, 
+              userId: professionalId 
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not fetch professional ${professionalId}:`, error);
+          professionalMap.set(professionalId, { 
+            email: 'Error loading professional', 
+            displayName: null, 
+            userId: professionalId 
+          });
+        }
+      }
+      
+      setProfessionalLookup(professionalMap);
+      setProfessionalAssignments(assignments);
+      
+    } catch (error) {
+      console.error('Error fetching professional assignments:', error);
+    }
+  };
+  
+  // Fetch temporary entities in progress
+  const fetchTempEntities = async () => {
+    if (!user?.username) return;
+    
+    try {
+      // TODO: Implement actual fetch from TempEntity model when created
+      // For now, use localStorage to persist temp entities
+      const storageKey = `tempEntities_${user.username}`;
+      const storedEntities = localStorage.getItem(storageKey);
+      if (storedEntities) {
+        setTempEntities(JSON.parse(storedEntities));
+      } else {
+        setTempEntities([]);
+      }
+      console.log('Fetching temp entities for:', user.username);
+    } catch (error) {
+      console.error('Error fetching temp entities:', error);
+    }
+  };
+  
+  // Handle name reservation success
+  const handleNameReservationSuccess = (tempEntityData: any) => {
+    console.log('Name reservation successful:', tempEntityData);
+    
+    // Store in localStorage (until we have proper database)
+    const storageKey = `tempEntities_${user?.username}`;
+    const existingEntities = localStorage.getItem(storageKey);
+    const entities = existingEntities ? JSON.parse(existingEntities) : [];
+    
+    const newEntity = {
+      id: `temp_${tempEntityData.entityType.toLowerCase()}_${Date.now()}`,
+      ...tempEntityData,
+      createdDate: new Date().toISOString().split('T')[0]
+    };
+    
+    entities.push(newEntity);
+    localStorage.setItem(storageKey, JSON.stringify(entities));
+    
+    // Update state
+    setTempEntities(entities);
+    setShowNameReservation({ show: false, entityType: null });
+    
+    // Show success message
+    alert('Name reservation submitted successfully! A compliance professional will review your request.');
+  };
+  
+  // Handle entity creation buttons
+  const handleCreateEntity = (entityType: 'COMPANY' | 'LLP') => {
+    setShowNameReservation({ show: true, entityType });
+  };
+  
   // Initial data load
   useEffect(() => {
     fetchDirectorData();
+    fetchTempEntities();
   }, [user?.username]);
   
   return (
@@ -140,6 +269,18 @@ const DirectorDashboard: React.FC = () => {
           LLPs ({llps.length})
         </button>
         <button 
+          className={activeTab === 'professional-associations' ? 'active' : ''} 
+          onClick={() => setActiveTab('professional-associations')}
+        >
+          Professional Associations ({professionalAssignments.length})
+        </button>
+        <button 
+          className={activeTab === 'entities-in-progress' ? 'active' : ''} 
+          onClick={() => setActiveTab('entities-in-progress')}
+        >
+          Entities in Progress ({tempEntities.length})
+        </button>
+        <button 
           className={activeTab === 'requests' ? 'active' : ''} 
           onClick={() => setActiveTab('requests')}
         >
@@ -148,7 +289,23 @@ const DirectorDashboard: React.FC = () => {
       </nav>
       
       <div className="dashboard-content">
-        {loading ? (
+        {showNameReservation.show ? (
+          <div>
+            <div className="content-header">
+              <h2>Create New {showNameReservation.entityType === 'COMPANY' ? 'Company' : 'LLP'}</h2>
+              <button 
+                className="cancel-button"
+                onClick={() => setShowNameReservation({ show: false, entityType: null })}
+              >
+                Cancel
+              </button>
+            </div>
+            <NameReservationForm 
+              entityType={showNameReservation.entityType!}
+              onSuccess={handleNameReservationSuccess}
+            />
+          </div>
+        ) : loading ? (
           <div className="loading">Loading your associations...</div>
         ) : (
           <>
@@ -279,6 +436,151 @@ const DirectorDashboard: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {activeTab === 'professional-associations' && (
+              <div>
+                <h2>Professional Associations</h2>
+                <p className="tab-description">
+                  View compliance professionals assigned to manage your entities.
+                </p>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Professional</th>
+                      <th>Entity</th>
+                      <th>Entity Type</th>
+                      <th>Assignment Role</th>
+                      <th>Assigned Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {professionalAssignments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="no-data">
+                          No professional associations found. Contact support to assign a compliance professional to your entities.
+                        </td>
+                      </tr>
+                    ) : (
+                      professionalAssignments.map(assignment => {
+                        const professional = professionalLookup.get(assignment.professionalId);
+                        const entity = assignment.entityType === 'COMPANY' 
+                          ? companies.find(c => c.id === assignment.entityId)
+                          : llps.find(l => l.id === assignment.entityId);
+                        
+                        return (
+                          <tr key={`${assignment.professionalId}-${assignment.entityId}`}>
+                            <td>
+                              {professional ? (
+                                <div>
+                                  <div>{professional.email}</div>
+                                  {professional.displayName && (
+                                    <small style={{ color: '#666' }}>{professional.displayName}</small>
+                                  )}
+                                </div>
+                              ) : (
+                                'Loading...'
+                              )}
+                            </td>
+                            <td>
+                              {entity ? (
+                                <div>
+                                  <div>{assignment.entityType === 'COMPANY' ? entity.companyName : entity.llpName}</div>
+                                  <small style={{ color: '#666' }}>
+                                    {assignment.entityType === 'COMPANY' ? 'CIN' : 'LLPIN'}: {assignment.entityType === 'COMPANY' ? entity.cinNumber : entity.llpIN}
+                                  </small>
+                                </div>
+                              ) : (
+                                'Loading...'
+                              )}
+                            </td>
+                            <td>{assignment.entityType}</td>
+                            <td>{assignment.role || 'PRIMARY'}</td>
+                            <td>{assignment.assignedDate ? new Date(assignment.assignedDate).toLocaleDateString() : '-'}</td>
+                            <td>
+                              <span className={`status-badge status-${assignment.isActive ? 'active' : 'inactive'}`}>
+                                {assignment.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {activeTab === 'entities-in-progress' && (
+              <div>
+                <div className="content-header">
+                  <h2>Entities in Progress</h2>
+                  <div className="entity-creation-buttons">
+                    <button 
+                      className="create-button"
+                      onClick={() => handleCreateEntity('COMPANY')}
+                    >
+                      Create Company
+                    </button>
+                    <button 
+                      className="create-button"
+                      onClick={() => handleCreateEntity('LLP')}
+                    >
+                      Create LLP
+                    </button>
+                  </div>
+                </div>
+                
+                {tempEntities.length === 0 ? (
+                  <div className="no-data-message">
+                    <p>No entities currently in progress.</p>
+                    <p>Click "Create Company" or "Create LLP" to start the incorporation process.</p>
+                  </div>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Entity Type</th>
+                        <th>Proposed Name</th>
+                        <th>Current Step</th>
+                        <th>Status</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tempEntities.map(entity => (
+                        <tr key={entity.id}>
+                          <td>{entity.entityType}</td>
+                          <td>{entity.nameReservationData?.firstProposedName || '-'}</td>
+                          <td>{entity.currentStep.replace(/_/g, ' ')}</td>
+                          <td>
+                            <span className={`status-badge status-${entity.status.toLowerCase().replace('_', '-')}`}>
+                              {entity.status.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td>{new Date(entity.createdDate).toLocaleDateString()}</td>
+                          <td>
+                            <button 
+                              className="action-button"
+                              onClick={() => alert(`Viewing details for ${entity.nameReservationData?.firstProposedName}`)}
+                            >
+                              View
+                            </button>
+                            <button 
+                              className="action-button"
+                              onClick={() => alert('Continue to next step (coming soon)')}
+                            >
+                              Continue
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
             

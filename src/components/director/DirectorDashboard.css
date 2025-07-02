@@ -102,7 +102,139 @@
   font-size: 1.1rem;
 }
 
-/* Responsive design */
+/* Content header with actions */
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.content-header h2 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+/* Entity creation buttons */
+.entity-creation-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.create-button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-button:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.cancel-button {
+  background: #95a5a6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+  background: #7f8c8d;
+}
+
+/* No data message styling */
+.no-data-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #7f8c8d;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #bdc3c7;
+}
+
+.no-data-message p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.no-data-message p:first-child {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* Action buttons in table */
+.action-button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: #2980b9;
+}
+
+.action-button:last-child {
+  margin-right: 0;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-in-progress {
+  background: #ffeaa7;
+  color: #2d3436;
+}
+
+.status-completed {
+  background: #00b894;
+  color: white;
+}
+
+.status-pending {
+  background: #74b9ff;
+  color: white;
+}
+
+.status-rejected {
+  background: #fd79a8;
+  color: white;
+}
+
+.status-initiated-name-reservation-process {
+  background: #81ecec;
+  color: #2d3436;
+}
+
+.status-active {\n  background: #00b894;\n  color: white;\n}\n\n.status-inactive {\n  background: #636e72;\n  color: white;\n}\n\n/* Tab description */\n.tab-description {\n  color: #7f8c8d;\n  font-size: 0.9rem;\n  margin-bottom: 1.5rem;\n  font-style: italic;\n}\n\n/* Responsive design */
 @media (max-width: 768px) {
   .director-dashboard {
     padding: 1rem;
@@ -128,5 +260,21 @@
   .data-table th,
   .data-table td {
     padding: 0.5rem;
+  }
+  
+  .content-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .entity-creation-buttons {
+    justify-content: center;
+  }
+  
+  .create-button,
+  .cancel-button {
+    flex: 1;
+    max-width: 200px;
   }
 }
