@@ -6,6 +6,7 @@ import "./App.css";
 
 // Import dashboard components
 import ProfessionalDashboard from "./components/professional/ProfessionalDashboard";
+import DirectorDashboard from "./components/director/DirectorDashboard";
 
 // Initialize the data client
 const client = generateClient<Schema>();
@@ -39,30 +40,74 @@ function App({ signOut, user } : {signOut:any, user: any} ) {
         try {
           setLoading(true);
           
-          // Check if profile exists
-          const existingProfiles = await client.models.UserProfile.list({
+          const userEmail = user.signInDetails?.loginId || user.username;
+          
+          // Check if profile exists by userId (Cognito login)
+          const existingByUserId = await client.models.UserProfile.list({
             filter: {
-              userId: {
-                eq: user.username
-              }
+              userId: { eq: user.username }
             }
           });
           
-          // If no profile exists, create one
-          if (existingProfiles.data.length === 0) {
+          // Check if profile exists by email (created by professional)
+          const existingByEmail = await client.models.UserProfile.list({
+            filter: {
+              email: { eq: userEmail }
+            }
+          });
+          
+          console.log('Existing profiles by userId:', existingByUserId.data);
+          console.log('Existing profiles by email:', existingByEmail.data);
+          
+          if (existingByUserId.data.length > 0) {
+            // User already has a Cognito-based profile
+            const profile = existingByUserId.data[0];
+            if (profile.role !== role) {
+              await client.models.UserProfile.update({
+                id: profile.id,
+                role: role as 'DIRECTORS' | 'PROFESSIONALS'
+              });
+              console.log('Updated existing Cognito profile role:', role);
+            }
+          } else if (existingByEmail.data.length > 0) {
+            // User has email-based profile created by professional - merge it
+            const emailProfile = existingByEmail.data[0];
+            console.log('Found email-based profile, merging with Cognito userId:', emailProfile);
+            
+            // Update the email-based profile with Cognito userId
+            await client.models.UserProfile.update({
+              id: emailProfile.id,
+              userId: user.username,
+              role: role as 'DIRECTORS' | 'PROFESSIONALS',
+              displayName: userEmail
+            });
+            console.log('Merged email-based profile with Cognito userId');
+            
+            // Update all DirectorAssociations to use the Cognito userId
+            const associations = await client.models.DirectorAssociation.list({
+              filter: {
+                userId: { eq: emailProfile.userId }
+              }
+            });
+            
+            console.log('Updating', associations.data.length, 'associations with new userId');
+            for (const assoc of associations.data) {
+              await client.models.DirectorAssociation.update({
+                id: assoc.id,
+                userId: user.username
+              });
+            }
+            console.log('Updated all associations with Cognito userId');
+            
+          } else {
+            // No profile exists, create new one
             await client.models.UserProfile.create({
               userId: user.username,
-              role: role,
-              displayName: user.signInDetails?.loginId || user.username
+              email: userEmail,
+              role: role as 'DIRECTORS' | 'PROFESSIONALS',
+              displayName: userEmail
             });
-            console.log('User profile created with role:', role);
-          } else if (existingProfiles.data[0].role !== role) {
-            // If profile exists but role changed, update it
-            await client.models.UserProfile.update({
-              userId: user.username,
-              role: role
-            });
-            console.log('User profile updated with new role:', role);
+            console.log('Created new user profile with role:', role);
           }
         } catch (error) {
           console.error('Error managing user profile:', error);
@@ -151,10 +196,9 @@ function App({ signOut, user } : {signOut:any, user: any} ) {
       
       <main className="app-main">
         {role === 'PROFESSIONALS' ? (
-          <ProfessionalDashboard user={user} />
+          <ProfessionalDashboard />
         ) : (
-          // <DirectorDashboard user={user} />
-          <p>director not implemented</p>
+          <DirectorDashboard />
         )}
       </main>
       

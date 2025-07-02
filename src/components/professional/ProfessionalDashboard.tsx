@@ -6,6 +6,7 @@ import type { Schema } from '../../../amplify/data/resource';
 import CompanyForm from './CompanyForm';
 import LLPForm from './LLPForm';
 import AssociateDirectorForm from './AssociateDirectorForm';
+import ServiceModal from './ServiceModal';
 import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
@@ -18,6 +19,13 @@ const ProfessionalDashboard: React.FC = () => {
   const [associations, setAssociations] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // Service modal state
+  const [serviceModal, setServiceModal] = useState<{
+    isOpen: boolean;
+    entity: any;
+    mode: 'view' | 'edit';
+  }>({ isOpen: false, entity: null, mode: 'view' });
   
   // Store director and entity lookup maps for associations display
   const [directorLookup, setDirectorLookup] = useState<Map<string, any>>(new Map());
@@ -229,6 +237,37 @@ const ProfessionalDashboard: React.FC = () => {
     fetchData();
   };
   
+  // Handle service modal actions
+  const handleViewEntity = (entity: any, entityType: 'COMPANY' | 'LLP') => {
+    setServiceModal({
+      isOpen: true,
+      entity: {
+        id: entity.id,
+        name: entityType === 'COMPANY' ? entity.companyName : entity.llpName,
+        type: entityType,
+        identifier: entityType === 'COMPANY' ? entity.cinNumber : entity.llpIN
+      },
+      mode: 'view'
+    });
+  };
+  
+  const handleEditEntity = (entity: any, entityType: 'COMPANY' | 'LLP') => {
+    setServiceModal({
+      isOpen: true,
+      entity: {
+        id: entity.id,
+        name: entityType === 'COMPANY' ? entity.companyName : entity.llpName,
+        type: entityType,
+        identifier: entityType === 'COMPANY' ? entity.cinNumber : entity.llpIN
+      },
+      mode: 'edit'
+    });
+  };
+  
+  const closeServiceModal = () => {
+    setServiceModal({ isOpen: false, entity: null, mode: 'view' });
+  };
+  
   // Render the appropriate form based on active tab
   const renderAddForm = () => {
     if (!showAddForm) return null;
@@ -326,8 +365,18 @@ const ProfessionalDashboard: React.FC = () => {
                           <td>{directors.length} directors</td>
                           <td>{company.dateOfIncorporation ? new Date(company.dateOfIncorporation).toLocaleDateString() : '-'}</td>
                           <td>
-                            <button className="action-button">View</button>
-                            <button className="action-button">Edit</button>
+                            <button 
+                              className="action-button"
+                              onClick={() => handleViewEntity(company, 'COMPANY')}
+                            >
+                              View
+                            </button>
+                            <button 
+                              className="action-button"
+                              onClick={() => handleEditEntity(company, 'COMPANY')}
+                            >
+                              Edit
+                            </button>
                           </td>
                         </tr>
                       );
@@ -367,8 +416,18 @@ const ProfessionalDashboard: React.FC = () => {
                           <td>{directors.length} associated</td>
                           <td>{llp.dateOfIncorporation ? new Date(llp.dateOfIncorporation).toLocaleDateString() : '-'}</td>
                           <td>
-                            <button className="action-button">View</button>
-                            <button className="action-button">Edit</button>
+                            <button 
+                              className="action-button"
+                              onClick={() => handleViewEntity(llp, 'LLP')}
+                            >
+                              View
+                            </button>
+                            <button 
+                              className="action-button"
+                              onClick={() => handleEditEntity(llp, 'LLP')}
+                            >
+                              Edit
+                            </button>
                           </td>
                         </tr>
                       );
@@ -444,6 +503,13 @@ const ProfessionalDashboard: React.FC = () => {
             )}
           </div>
         )}
+        
+        <ServiceModal
+          isOpen={serviceModal.isOpen}
+          onClose={closeServiceModal}
+          entity={serviceModal.entity}
+          mode={serviceModal.mode}
+        />
       </div>
     </div>
   );
