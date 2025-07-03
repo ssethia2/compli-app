@@ -1,0 +1,230 @@
+{
+  "project": {
+    "name": "Corporate Compliance Portal",
+    "description": "A comprehensive compliance management application for corporate entities and compliance professionals",
+    "version": "1.0.0",
+    "framework": "React + TypeScript + AWS Amplify Gen 2",
+    "lastUpdated": "2025-07-03"
+  },
+  "architecture": {
+    "frontend": "React 18 with TypeScript",
+    "backend": "AWS Amplify Gen 2",
+    "authentication": "Amazon Cognito User Pools",
+    "database": "AWS AppSync + DynamoDB",
+    "deployment": "AWS Amplify Hosting"
+  },
+  "userRoles": {
+    "DIRECTORS": {
+      "description": "Company/LLP directors who can create entities and manage their associations",
+      "permissions": ["create entities", "view own entities", "submit name reservations", "view professional assignments"]
+    },
+    "PROFESSIONALS": {
+      "description": "Compliance professionals who manage multiple entities and director relationships",
+      "permissions": ["manage assigned entities", "view/edit companies and LLPs", "manage director associations", "service management"]
+    }
+  },
+  "components": {
+    "authentication": {
+      "CustomAuthenticator": {
+        "path": "src/components/CustomAuthenticator.tsx",
+        "description": "Custom authentication wrapper with role selection"
+      }
+    },
+    "director": {
+      "DirectorDashboard": {
+        "path": "src/components/director/DirectorDashboard.tsx",
+        "description": "Main dashboard for directors with multiple tabs",
+        "features": [
+          "My Associations - View entity associations",
+          "Companies - View associated companies",
+          "LLPs - View associated LLPs", 
+          "Professional Associations - See assigned compliance professionals",
+          "Entities in Progress - Create new entities with name reservation",
+          "Change Requests - Future functionality"
+        ]
+      },
+      "NameReservationForm": {
+        "path": "src/components/director/NameReservationForm.tsx",
+        "description": "Form for directors to submit name reservations for new entities",
+        "fields": [
+          "First Proposed Name",
+          "Second Proposed Name", 
+          "Proposed Object (business description)",
+          "Trademarked status (radio)",
+          "Word Mark (conditional)",
+          "Trademark Class (conditional)",
+          "PAN Number (conditional)",
+          "Significance of Name"
+        ]
+      }
+    },
+    "professional": {
+      "ProfessionalDashboard": {
+        "path": "src/components/professional/ProfessionalDashboard.tsx",
+        "description": "Main dashboard for compliance professionals",
+        "features": [
+          "My Companies - View and manage assigned companies",
+          "My LLPs - View and manage assigned LLPs",
+          "Director Associations - Manage director-entity relationships"
+        ]
+      },
+      "ServiceModal": {
+        "path": "src/components/professional/ServiceModal.tsx",
+        "description": "Modal for service selection and action execution",
+        "services": [
+          "Incorporation Service - Certificate viewing, detail updates, office changes, MOA/AOA modifications",
+          "Annual Filing Service - Statutory filings",
+          "Board Meeting Service - Meeting and resolution management"
+        ]
+      },
+      "CompanyForm": {
+        "path": "src/components/professional/CompanyForm.tsx",
+        "description": "Form for creating new companies"
+      },
+      "LLPForm": {
+        "path": "src/components/professional/LLPForm.tsx", 
+        "description": "Form for creating new LLPs"
+      },
+      "AssociateDirectorForm": {
+        "path": "src/components/professional/AssociateDirectorForm.tsx",
+        "description": "Form for associating directors with entities"
+      }
+    }
+  },
+  "dataModels": {
+    "UserProfile": {
+      "description": "User profile information linking Cognito users to application roles",
+      "fields": ["userId", "email", "role", "displayName"],
+      "relationships": ["professionalAssignments", "directorAssociations", "changeRequests"]
+    },
+    "Company": {
+      "description": "Company entity information",
+      "fields": ["cinNumber", "companyName", "rocName", "dateOfIncorporation", "emailId", "registeredAddress", "authorizedCapital", "paidUpCapital", "numberOfDirectors", "companyStatus", "companyType"],
+      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS"],
+      "types": ["PRIVATE", "PUBLIC", "ONE_PERSON", "SECTION_8"]
+    },
+    "LLP": {
+      "description": "Limited Liability Partnership entity information", 
+      "fields": ["llpIN", "llpName", "rocName", "dateOfIncorporation", "emailId", "numberOfPartners", "numberOfDesignatedPartners", "registeredAddress", "totalObligationOfContribution", "llpStatus"],
+      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS"]
+    },
+    "ProfessionalAssignment": {
+      "description": "Junction table linking professionals to entities they manage",
+      "fields": ["professionalId", "entityId", "entityType", "assignedDate", "isActive", "role"],
+      "roles": ["PRIMARY", "SECONDARY", "REVIEWER"]
+    },
+    "DirectorAssociation": {
+      "description": "Junction table linking directors to entities they're associated with",
+      "fields": ["userId", "entityId", "entityType", "associationType", "appointmentDate", "isActive"],
+      "types": ["DIRECTOR", "DESIGNATED_PARTNER", "PARTNER"]
+    },
+    "ChangeRequest": {
+      "description": "Change requests submitted by directors",
+      "fields": ["requestId", "directorId", "entityId", "entityType", "changeType", "requestDetails", "status", "createdAt", "updatedAt", "processedBy", "comments"],
+      "changeTypes": ["UPDATE_INFO", "ADD_DIRECTOR", "REMOVE_DIRECTOR", "STATUS_CHANGE", "OTHER"],
+      "status": ["PENDING", "APPROVED", "REJECTED", "COMPLETED"]
+    }
+  },
+  "features": {
+    "nameReservation": {
+      "description": "Multi-step entity creation process starting with name reservation",
+      "steps": ["Name Reservation", "SPiCe Form Generation", "SPiCe Form Completion", "Final Registration"],
+      "currentImplementation": "Name Reservation step completed",
+      "storage": "localStorage (temporary, pending database model implementation)"
+    },
+    "serviceManagement": {
+      "description": "Service-based action system for entity management",
+      "implementedServices": ["Incorporation Service"],
+      "plannedServices": ["Annual Filing Service", "Board Meeting Service"],
+      "incorporationActions": ["View Certificate", "Update Details", "Change Registered Office", "Modify MOA/AOA"]
+    },
+    "roleBasedAccess": {
+      "description": "Dual-role system with different dashboards and permissions",
+      "implementation": "Cognito User Pool groups with role-based UI rendering"
+    },
+    "professionalAssignments": {
+      "description": "System for assigning compliance professionals to manage entities",
+      "features": ["Automatic assignment on entity creation", "Professional association tracking", "Director visibility into assigned professionals"]
+    }
+  },
+  "configuration": {
+    "amplify": {
+      "auth": {
+        "file": "amplify/auth/resource.ts",
+        "provider": "Cognito User Pools",
+        "loginMethod": "Email",
+        "groups": ["DIRECTORS", "PROFESSIONALS"]
+      },
+      "data": {
+        "file": "amplify/data/resource.ts", 
+        "authorization": "User Pool",
+        "models": 6
+      },
+      "backend": {
+        "file": "amplify/backend.ts",
+        "resources": ["auth", "data"]
+      }
+    },
+    "deployment": {
+      "platform": "AWS Amplify",
+      "environment": "Production",
+      "cicd": "Amplify Pipeline Deploy"
+    }
+  },
+  "styling": {
+    "approach": "Component-scoped CSS",
+    "files": [
+      "src/components/director/DirectorDashboard.css",
+      "src/components/director/NameReservationForm.css", 
+      "src/components/professional/ProfessionalDashboard.css",
+      "src/components/professional/ServiceModal.css",
+      "src/components/professional/Forms.css",
+      "src/App.css",
+      "src/index.css"
+    ],
+    "design": "Professional, responsive, accessibility-friendly"
+  },
+  "futureEnhancements": {
+    "database": {
+      "description": "Implement TempEntity model for proper entity creation tracking",
+      "priority": "High"
+    },
+    "workflow": {
+      "description": "Complete multi-step entity creation process beyond name reservation",
+      "priority": "High"
+    },
+    "notifications": {
+      "description": "Real-time notifications for status changes and assignments",
+      "priority": "Medium"
+    },
+    "reporting": {
+      "description": "Compliance reporting and analytics dashboard",
+      "priority": "Medium"
+    },
+    "documentManagement": {
+      "description": "File upload and document management system",
+      "priority": "Low"
+    }
+  },
+  "technicalDebt": {
+    "todos": [
+      "Implement Lambda trigger for automatic Cognito group assignment",
+      "Restore proper group-based authorization instead of allow.authenticated()",
+      "Test role-based permissions thoroughly", 
+      "Consider implementing API-level role checks as additional security layer",
+      "Remove temporary simplified auth and use proper Cognito groups",
+      "Create TempEntity database model",
+      "Implement actual database persistence for name reservations"
+    ]
+  },
+  "deployment": {
+    "status": "In Progress",
+    "lastAttempt": "2025-07-03",
+    "issues": [
+      "CloudFormation User Pool attribute configuration",
+      "Cognito groups setup",
+      "Auth provider configuration"
+    ],
+    "resolution": "Simplified auth configuration to remove unused user attributes"
+  }
+}
