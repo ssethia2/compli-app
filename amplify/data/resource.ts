@@ -26,7 +26,7 @@ const schema = a.schema({
     changeRequests: a.hasMany('ChangeRequest', 'directorId')
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   ),
 
@@ -48,7 +48,7 @@ const schema = a.schema({
     // This avoids the polymorphic relationship complexity
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   ),
 
@@ -69,7 +69,7 @@ const schema = a.schema({
     // This avoids the polymorphic relationship complexity
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   ),
 
@@ -87,7 +87,7 @@ const schema = a.schema({
     // We'll handle Company/LLP relationships via queries using entityId + entityType
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   ),
 
@@ -105,7 +105,7 @@ const schema = a.schema({
     // We'll handle Company/LLP relationships via queries using entityId + entityType
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   ),
 
