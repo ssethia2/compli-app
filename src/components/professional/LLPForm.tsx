@@ -54,7 +54,10 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
       console.log('Creating LLP with data:', formData);
       
       // Create the LLP record
-      const result = await client.models.LLP.create(formData);
+      const result = await client.models.LLP.create({
+        ...formData,
+        llpStatus: formData.llpStatus as 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS'
+      });
       console.log('LLP created successfully:', result);
       
       // Reset form

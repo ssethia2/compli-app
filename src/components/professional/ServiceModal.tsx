@@ -29,7 +29,7 @@ interface ServiceModalProps {
 
 const ServiceModal: React.FC<ServiceModalProps> = ({ isOpen, onClose, entity, mode }) => {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [selectedAction, setSelectedAction] = useState<Action | null>(null);
+  const [, setSelectedAction] = useState<Action | null>(null);
 
   // Available services
   const services: Service[] = [

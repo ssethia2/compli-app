@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { generateClient } from 'aws-amplify/data';
+// import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import type { Schema } from '../../../amplify/data/resource';
+// import type { Schema } from '../../../amplify/data/resource';
 import './NameReservationForm.css';
 
-const client = generateClient<Schema>();
+// const client = generateClient<Schema>();
 
 interface NameReservationFormProps {
   onSuccess: (tempEntityData: any) => void;

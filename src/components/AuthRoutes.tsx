@@ -15,7 +15,7 @@ const AuthRoutes: React.FC = () => {
   return (
     <Routes>
       {/* Main App Route */}
-      <Route path="/app" element={<App />} />
+      <Route path="/app" element={<App signOut={() => {}} user={{}} />} />
       
       {/* Default redirect to app */}
       <Route path="*" element={<Navigate to="/app" replace />} />

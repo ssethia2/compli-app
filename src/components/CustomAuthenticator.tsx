@@ -39,7 +39,7 @@ const CustomAuthFooter = () => {
       <Text>Choose which role you want to use for this session:</Text>
       
       <RadioGroupField 
-        label="Role" 
+        legend="Role"
         name="role"
         value={selectedRole}
         onChange={(e) => setSelectedRole(e.target.value)}
