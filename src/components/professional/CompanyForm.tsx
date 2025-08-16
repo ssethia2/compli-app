@@ -76,6 +76,20 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
     setLoading(true);
     setError('');
     
+    // Validate minimum 2 directors
+    if (formData.numberOfDirectors < 2) {
+      setError('A company must have a minimum of 2 directors');
+      setLoading(false);
+      return;
+    }
+    
+    // Validate authorized capital >= paid up capital
+    if (formData.authorizedCapital > 0 && formData.paidUpCapital > formData.authorizedCapital) {
+      setError('Paid up capital cannot exceed authorized capital');
+      setLoading(false);
+      return;
+    }
+    
     try {
       console.log('Creating company with data:', formData);
       
@@ -257,7 +271,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
             name="numberOfDirectors"
             value={formData.numberOfDirectors}
             onChange={handleChange}
-            min="0"
+            min="2"
           />
         </div>
         

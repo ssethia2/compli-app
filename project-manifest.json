@@ -217,6 +217,11 @@
       "Implement actual database persistence for name reservations"
     ]
   },
+  "functionalTodos": {
+    "description": "Lower priority functional fixes and validations",
+    "priority": "Low",
+    "todos": []
+  },
   "deployment": {
     "status": "In Progress",
     "lastAttempt": "2025-07-03",
