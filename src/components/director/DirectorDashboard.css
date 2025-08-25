@@ -234,7 +234,348 @@
   color: #2d3436;
 }
 
-.status-active {\n  background: #00b894;\n  color: white;\n}\n\n.status-inactive {\n  background: #636e72;\n  color: white;\n}\n\n/* Tab description */\n.tab-description {\n  color: #7f8c8d;\n  font-size: 0.9rem;\n  margin-bottom: 1.5rem;\n  font-style: italic;\n}\n\n/* Responsive design */
+.status-active {
+  background: #00b894;
+  color: white;
+}
+
+.status-inactive {
+  background: #636e72;
+  color: white;
+}
+
+.status-suspended {
+  background: #e17055;
+  color: white;
+}
+
+.status-expired {
+  background: #e17055;
+  color: white;
+}
+
+.status-revoked {
+  background: #d63031;
+  color: white;
+}
+
+.status-not_available {
+  background: #636e72;
+  color: white;
+}
+
+.status-unknown {
+  background: #ddd;
+  color: #666;
+}
+
+/* Director Profile Card */
+.director-profile-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.profile-header {
+  border-bottom: 1px solid #ecf0f1;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.profile-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-row {
+  display: flex;
+  gap: 2rem;
+}
+
+.profile-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.profile-field.full-width {
+  flex: 100%;
+}
+
+.profile-field label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.profile-field span {
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.esign-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.esign-image {
+  max-width: 200px;
+  max-height: 100px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background: #f8f9fa;
+}
+
+.profile-actions {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ecf0f1;
+  display: flex;
+  gap: 1rem;
+}
+
+.edit-profile-btn,
+.upload-esign-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.edit-profile-btn {
+  background: #3498db;
+  color: white;
+}
+
+.edit-profile-btn:hover {
+  background: #2980b9;
+}
+
+.upload-esign-btn {
+  background: #27ae60;
+  color: white;
+}
+
+.upload-esign-btn:hover {
+  background: #229954;
+}
+
+/* Tab description */
+.tab-description {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+/* Services Grid */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.service-category {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  border: 1px solid #ecf0f1;
+}
+
+.service-category h3 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.service-items {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.service-item:hover {
+  background: #e8f4ff;
+  border-color: #3498db;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+  transform: translateY(-1px);
+}
+
+.service-icon {
+  font-size: 1.5rem;
+  min-width: 2rem;
+  text-align: center;
+}
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.service-name {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.service-desc {
+  color: #7f8c8d;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Director Forms (Appointment, Resignation & KYC) */
+.director-appointment-form,
+.director-resignation-form,
+.director-kyc-form {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  margin-top: 1.5rem;
+}
+
+.director-appointment-form .form-row,
+.director-resignation-form .form-row,
+.director-kyc-form .form-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.director-appointment-form .form-group,
+.director-resignation-form .form-group,
+.director-kyc-form .form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.director-appointment-form label,
+.director-resignation-form label,
+.director-kyc-form label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.director-appointment-form input,
+.director-appointment-form select,
+.director-appointment-form textarea,
+.director-resignation-form input,
+.director-resignation-form select,
+.director-resignation-form textarea,
+.director-kyc-form input,
+.director-kyc-form select,
+.director-kyc-form textarea {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  font-family: inherit;
+}
+
+.director-appointment-form input:focus,
+.director-appointment-form select:focus,
+.director-appointment-form textarea:focus,
+.director-resignation-form input:focus,
+.director-resignation-form select:focus,
+.director-resignation-form textarea:focus,
+.director-kyc-form input:focus,
+.director-kyc-form select:focus,
+.director-kyc-form textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.director-appointment-form textarea,
+.director-resignation-form textarea,
+.director-kyc-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ecf0f1;
+}
+
+.submit-button {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.submit-button:hover {
+  background: #229954;
+}
+
+.cancel-button {
+  background: #95a5a6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.cancel-button:hover {
+  background: #7f8c8d;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
   .director-dashboard {
     padding: 1rem;
@@ -264,8 +605,48 @@
   
   .content-header {
     flex-direction: column;
+  }
+  
+  .profile-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .director-profile-card {
+    padding: 1.5rem;
+  }
+  
+  .profile-actions {
+    flex-direction: column;
     align-items: stretch;
     gap: 1rem;
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .service-items {
+    grid-template-columns: 1fr;
+  }
+  
+  .director-appointment-form .form-row,
+  .director-resignation-form .form-row,
+  .director-kyc-form .form-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .director-appointment-form,
+  .director-resignation-form,
+  .director-kyc-form {
+    padding: 1.5rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
   
   .entity-creation-buttons {

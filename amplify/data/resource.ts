@@ -16,6 +16,12 @@ const schema = a.schema({
     email: a.string().required(),
     role: a.enum(['DIRECTORS', 'PROFESSIONALS']),
     displayName: a.string(),
+    // Director-specific fields
+    din: a.string(),
+    dinStatus: a.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING']),
+    dscStatus: a.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'NOT_AVAILABLE']),
+    pan: a.string(),
+    eSignImageUrl: a.string(), // URL to e-sign image
     
     // RELATIONSHIPS
     // For professionals - their entity assignments
@@ -41,8 +47,11 @@ const schema = a.schema({
     authorizedCapital: a.float(),
     paidUpCapital: a.float(),
     numberOfDirectors: a.integer(),
-    companyStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS']),
-    companyType: a.enum(['PRIVATE', 'PUBLIC', 'ONE_PERSON', 'SECTION_8'])
+    companyStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS', 'STRUCK_OFF', 'AMALGAMATED']),
+    companyType: a.enum(['PRIVATE', 'PUBLIC', 'ONE_PERSON', 'SECTION_8', 'GOVERNMENT', 'NBFC', 'NIDHI', 'IFSC']),
+    lastAnnualFilingDate: a.date(),
+    financialYear: a.string(),
+    agmDate: a.date()
     
     // Note: We'll handle relationships via queries rather than direct hasMany
     // This avoids the polymorphic relationship complexity
@@ -63,7 +72,9 @@ const schema = a.schema({
     numberOfDesignatedPartners: a.integer(),
     registeredAddress: a.string(),
     totalObligationOfContribution: a.float(),
-    llpStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS'])
+    llpStatus: a.enum(['ACTIVE', 'INACTIVE', 'UNDER_PROCESS', 'STRUCK_OFF', 'AMALGAMATED']),
+    lastAnnualFilingDate: a.date(),
+    financialYear: a.string()
     
     // Note: We'll handle relationships via queries rather than direct hasMany
     // This avoids the polymorphic relationship complexity
@@ -97,7 +108,10 @@ const schema = a.schema({
     entityId: a.string().required(),
     entityType: a.enum(['LLP', 'COMPANY']),
     associationType: a.enum(['DIRECTOR', 'DESIGNATED_PARTNER', 'PARTNER']),
-    appointmentDate: a.date(),
+    din: a.string(), // Director Identification Number
+    originalAppointmentDate: a.date(), // Original date of appointment
+    appointmentDate: a.date(), // Date of appointment at current designation
+    cessationDate: a.date(), // Date of cessation (if applicable)
     isActive: a.boolean().default(true),
     
     // RELATIONSHIPS - only to UserProfile

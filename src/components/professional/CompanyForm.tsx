@@ -6,8 +6,8 @@ import './Forms.css';
 
 const client = generateClient<Schema>();
 
-type CompanyStatus = 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS';
-type CompanyType = 'PRIVATE' | 'PUBLIC' | 'ONE_PERSON' | 'SECTION_8';
+type CompanyStatus = 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF' | 'AMALGAMATED';
+type CompanyType = 'PRIVATE' | 'PUBLIC' | 'ONE_PERSON' | 'SECTION_8' | 'GOVERNMENT' | 'NBFC' | 'NIDHI' | 'IFSC';
 
 interface CompanyFormProps {
   onSuccess?: (companyId: string) => void; // Updated to pass company ID
@@ -25,6 +25,9 @@ interface CompanyFormState {
   numberOfDirectors: number;
   companyStatus: CompanyStatus;
   companyType: CompanyType;
+  lastAnnualFilingDate: string;
+  financialYear: string;
+  agmDate: string;
 }
 
 const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
@@ -39,7 +42,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
     paidUpCapital: 0,
     numberOfDirectors: 0,
     companyStatus: 'ACTIVE',
-    companyType: 'PRIVATE'
+    companyType: 'PRIVATE',
+    lastAnnualFilingDate: '',
+    financialYear: '',
+    agmDate: ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -104,7 +110,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
         paidUpCapital: formData.paidUpCapital || undefined,
         numberOfDirectors: formData.numberOfDirectors || undefined,
         companyStatus: formData.companyStatus,
-        companyType: formData.companyType
+        companyType: formData.companyType,
+        lastAnnualFilingDate: formData.lastAnnualFilingDate || undefined,
+        financialYear: formData.financialYear || undefined,
+        agmDate: formData.agmDate || undefined
       });
       
       console.log('Company created successfully:', result);
@@ -126,7 +135,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
         paidUpCapital: 0,
         numberOfDirectors: 0,
         companyStatus: 'ACTIVE',
-        companyType: 'PRIVATE'
+        companyType: 'PRIVATE',
+        lastAnnualFilingDate: '',
+        financialYear: '',
+        agmDate: ''
       });
       
       // Call success callback with company ID
@@ -188,8 +200,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
           >
             <option value="PRIVATE">Private Limited</option>
             <option value="PUBLIC">Public Limited</option>
-            <option value="ONE_PERSON">One Person Company</option>
-            <option value="SECTION_8">Section 8 Company</option>
+            <option value="ONE_PERSON">OPC</option>
+            <option value="GOVERNMENT">Government</option>
+            <option value="NBFC">NBFC</option>
+            <option value="NIDHI">Nidhi</option>
+            <option value="SECTION_8">Section 8</option>
+            <option value="IFSC">IFSC</option>
           </select>
         </div>
         
@@ -285,8 +301,46 @@ const CompanyForm: React.FC<CompanyFormProps> = ({ onSuccess }) => {
           >
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
-            <option value="UNDER_PROCESS">Under Process</option>
+            <option value="UNDER_PROCESS">In Progress</option>
+            <option value="STRUCK_OFF">Struck Off</option>
+            <option value="AMALGAMATED">Amalgamated</option>
           </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="lastAnnualFilingDate">Last Annual Filing Date</label>
+          <input
+            type="date"
+            id="lastAnnualFilingDate"
+            name="lastAnnualFilingDate"
+            value={formData.lastAnnualFilingDate}
+            onChange={handleChange}
+          />
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="financialYear">Financial Year</label>
+            <input
+              type="text"
+              id="financialYear"
+              name="financialYear"
+              value={formData.financialYear}
+              onChange={handleChange}
+              placeholder="e.g., 2023-24"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="agmDate">AGM Date</label>
+            <input
+              type="date"
+              id="agmDate"
+              name="agmDate"
+              value={formData.agmDate}
+              onChange={handleChange}
+            />
+          </div>
         </div>
         
         <div className="form-buttons">

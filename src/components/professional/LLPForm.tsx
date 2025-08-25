@@ -22,7 +22,9 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
     numberOfDesignatedPartners: 0,
     registeredAddress: '',
     totalObligationOfContribution: 0,
-    llpStatus: 'ACTIVE'
+    llpStatus: 'ACTIVE',
+    lastAnnualFilingDate: '',
+    financialYear: ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
       // Create the LLP record
       const result = await client.models.LLP.create({
         ...formData,
-        llpStatus: formData.llpStatus as 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS'
+        llpStatus: formData.llpStatus as 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF' | 'AMALGAMATED'
       });
       console.log('LLP created successfully:', result);
       
@@ -71,7 +73,9 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
         numberOfDesignatedPartners: 0,
         registeredAddress: '',
         totalObligationOfContribution: 0,
-        llpStatus: 'ACTIVE'
+        llpStatus: 'ACTIVE',
+        lastAnnualFilingDate: '',
+        financialYear: ''
       });
       
       // Call success callback if provided with LLP ID
@@ -212,8 +216,33 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
           >
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
-            <option value="UNDER_PROCESS">Under Process</option>
+            <option value="UNDER_PROCESS">In Progress</option>
+            <option value="STRUCK_OFF">Struck Off</option>
+            <option value="AMALGAMATED">Amalgamated</option>
           </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="lastAnnualFilingDate">Last Annual Filing Date</label>
+          <input
+            type="date"
+            id="lastAnnualFilingDate"
+            name="lastAnnualFilingDate"
+            value={formData.lastAnnualFilingDate}
+            onChange={handleChange}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="financialYear">Financial Year</label>
+          <input
+            type="text"
+            id="financialYear"
+            name="financialYear"
+            value={formData.financialYear}
+            onChange={handleChange}
+            placeholder="e.g., 2023-24"
+          />
         </div>
         
         <div className="form-buttons">

@@ -297,35 +297,42 @@ const ProfessionalDashboard: React.FC = () => {
           className={activeTab === 'companies' ? 'active' : ''} 
           onClick={() => { setActiveTab('companies'); setShowAddForm(false); }}
         >
-          My Companies ({companies.length})
+          Company Master Dashboard ({companies.length})
         </button>
         <button 
           className={activeTab === 'llps' ? 'active' : ''} 
           onClick={() => { setActiveTab('llps'); setShowAddForm(false); }}
         >
-          My LLPs ({llps.length})
+          LLP Master Dashboard ({llps.length})
         </button>
         <button 
           className={activeTab === 'associations' ? 'active' : ''} 
           onClick={() => { setActiveTab('associations'); setShowAddForm(false); }}
         >
-          Director Associations
+          Director Dashboard
+        </button>
+        <button 
+          className={activeTab === 'service-requests' ? 'active' : ''} 
+          onClick={() => { setActiveTab('service-requests'); setShowAddForm(false); }}
+        >
+          Service Requests
         </button>
       </nav>
       
       <div className="dashboard-content">
         <div className="content-header">
           <h2>
-            {activeTab === 'companies' && 'My Assigned Companies'}
-            {activeTab === 'llps' && 'My Assigned LLPs'}
-            {activeTab === 'associations' && 'Director Associations'}
+            {activeTab === 'companies' && 'Company Master Dashboard'}
+            {activeTab === 'llps' && 'LLP Master Dashboard'}
+            {activeTab === 'associations' && 'Director Dashboard'}
+            {activeTab === 'service-requests' && 'Service Requests'}
           </h2>
           
           <button 
             className="add-button"
             onClick={() => setShowAddForm(!showAddForm)}
           >
-            {showAddForm ? 'Cancel' : `Add ${activeTab === 'companies' ? 'Company' : activeTab === 'llps' ? 'LLP' : 'Association'}`}
+            {showAddForm ? 'Cancel' : `Add ${activeTab === 'companies' ? 'Company' : activeTab === 'llps' ? 'LLP' : activeTab === 'associations' ? 'Association' : activeTab === 'service-requests' ? 'Service Request' : 'Item'}`}
           </button>
         </div>
         
@@ -339,31 +346,50 @@ const ProfessionalDashboard: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>CIN</th>
                     <th>Company Name</th>
+                    <th>CIN</th>
                     <th>Type</th>
-                    <th>Status</th>
-                    <th>Directors</th>
+                    <th>Registered Office</th>
+                    <th>Email</th>
                     <th>Incorporation Date</th>
+                    <th>Directors</th>
+                    <th>Capital (Auth/Paid)</th>
+                    <th>Status</th>
+                    <th>Last Filing</th>
+                    <th>FY</th>
+                    <th>AGM</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {companies.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="no-data">No companies assigned to you. Create one to get started.</td>
+                      <td colSpan={13} className="no-data">No companies assigned to you. Create one to get started.</td>
                     </tr>
                   ) : (
                     companies.map(company => {
                       const directors = getDirectorsForEntity(company.id, 'COMPANY');
                       return (
                         <tr key={company.cinNumber}>
-                          <td>{company.cinNumber}</td>
                           <td>{company.companyName}</td>
-                          <td>{company.companyType}</td>
-                          <td>{company.companyStatus}</td>
-                          <td>{directors.length} directors</td>
+                          <td>{company.cinNumber}</td>
+                          <td>{company.companyType === 'ONE_PERSON' ? 'OPC' : company.companyType}</td>
+                          <td>{company.registeredAddress || '-'}</td>
+                          <td>{company.emailId || '-'}</td>
                           <td>{company.dateOfIncorporation ? new Date(company.dateOfIncorporation).toLocaleDateString() : '-'}</td>
+                          <td>{directors.length} directors</td>
+                          <td>
+                            {company.authorizedCapital || company.paidUpCapital ? (
+                              <div>
+                                <div>₹{(company.authorizedCapital || 0).toLocaleString()}</div>
+                                <small>₹{(company.paidUpCapital || 0).toLocaleString()}</small>
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td>{company.companyStatus === 'UNDER_PROCESS' ? 'In Progress' : company.companyStatus}</td>
+                          <td>{company.lastAnnualFilingDate ? new Date(company.lastAnnualFilingDate).toLocaleDateString() : '-'}</td>
+                          <td>{company.financialYear || '-'}</td>
+                          <td>{company.agmDate ? new Date(company.agmDate).toLocaleDateString() : '-'}</td>
                           <td>
                             <button 
                               className="action-button"
@@ -390,31 +416,42 @@ const ProfessionalDashboard: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>LLPIN</th>
                     <th>LLP Name</th>
-                    <th>Status</th>
-                    <th>Partners</th>
-                    <th>Directors</th>
+                    <th>LLPIN</th>
+                    <th>Registered Office</th>
+                    <th>Email</th>
                     <th>Incorporation Date</th>
+                    <th>Partners/Designated</th>
+                    <th>Contribution</th>
+                    <th>Status</th>
+                    <th>Last Filing</th>
+                    <th>FY</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {llps.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="no-data">No LLPs assigned to you. Create one to get started.</td>
+                      <td colSpan={11} className="no-data">No LLPs assigned to you. Create one to get started.</td>
                     </tr>
                   ) : (
                     llps.map(llp => {
-                      const directors = getDirectorsForEntity(llp.id, 'LLP');
                       return (
                         <tr key={llp.llpIN}>
-                          <td>{llp.llpIN}</td>
                           <td>{llp.llpName}</td>
-                          <td>{llp.llpStatus}</td>
-                          <td>{llp.numberOfPartners} ({llp.numberOfDesignatedPartners} designated)</td>
-                          <td>{directors.length} associated</td>
+                          <td>{llp.llpIN}</td>
+                          <td>{llp.registeredAddress || '-'}</td>
+                          <td>{llp.emailId || '-'}</td>
                           <td>{llp.dateOfIncorporation ? new Date(llp.dateOfIncorporation).toLocaleDateString() : '-'}</td>
+                          <td>
+                            {llp.numberOfPartners}/{llp.numberOfDesignatedPartners}
+                            <br />
+                            <small>Partners/Designated</small>
+                          </td>
+                          <td>₹{(llp.totalObligationOfContribution || 0).toLocaleString()}</td>
+                          <td>{llp.llpStatus === 'UNDER_PROCESS' ? 'In Progress' : llp.llpStatus}</td>
+                          <td>{llp.lastAnnualFilingDate ? new Date(llp.lastAnnualFilingDate).toLocaleDateString() : '-'}</td>
+                          <td>{llp.financialYear || '-'}</td>
                           <td>
                             <button 
                               className="action-button"
@@ -441,19 +478,22 @@ const ProfessionalDashboard: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Director</th>
-                    <th>Entity</th>
-                    <th>Entity Type</th>
+                    <th>Director Name</th>
+                    <th>Email</th>
+                    <th>DIN</th>
+                    <th>Co/LLP Name</th>
+                    <th>Type</th>
                     <th>Association Type</th>
-                    <th>Appointment Date</th>
-                    <th>Status</th>
+                    <th>Original Appointment</th>
+                    <th>Current Designation Date</th>
+                    <th>Cessation Date</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {associations.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="no-data">No director associations found for your entities.</td>
+                      <td colSpan={10} className="no-data">No director associations found for your entities.</td>
                     </tr>
                   ) : (
                     associations.map(assoc => {
@@ -464,20 +504,22 @@ const ProfessionalDashboard: React.FC = () => {
                         <tr key={`${assoc.userId}-${assoc.entityId}`}>
                           <td>
                             {director ? (
-                              <div>
-                                <div>{director.email}</div>
-                                {director.displayName && (
-                                  <small style={{ color: '#666' }}>{director.displayName}</small>
-                                )}
-                              </div>
+                              director.displayName || director.email.split('@')[0]
                             ) : (
                               'Loading...'
                             )}
                           </td>
                           <td>
+                            {director ? director.email : 'Loading...'}
+                          </td>
+                          <td>{assoc.din || '-'}</td>
+                          <td>
+                            {entity ? entity.name : 'Loading...'}
+                          </td>
+                          <td>
                             {entity ? (
                               <div>
-                                <div>{entity.name}</div>
+                                <div>{entity.type === 'COMPANY' ? 'Company' : 'LLP'}</div>
                                 <small style={{ color: '#666' }}>
                                   {entity.type === 'COMPANY' ? 'CIN' : 'LLPIN'}: {entity.identifier}
                                 </small>
@@ -486,10 +528,10 @@ const ProfessionalDashboard: React.FC = () => {
                               'Loading...'
                             )}
                           </td>
-                          <td>{assoc.entityType}</td>
-                          <td>{assoc.associationType}</td>
+                          <td>{assoc.associationType === 'DIRECTOR' ? 'Director' : assoc.associationType === 'DESIGNATED_PARTNER' ? 'Designated Partner' : 'Partner'}</td>
+                          <td>{assoc.originalAppointmentDate ? new Date(assoc.originalAppointmentDate).toLocaleDateString() : '-'}</td>
                           <td>{assoc.appointmentDate ? new Date(assoc.appointmentDate).toLocaleDateString() : '-'}</td>
-                          <td>{assoc.isActive ? 'Active' : 'Inactive'}</td>
+                          <td>{assoc.cessationDate ? new Date(assoc.cessationDate).toLocaleDateString() : (assoc.isActive ? '-' : 'N/A')}</td>
                           <td>
                             <button className="action-button">View</button>
                             <button className="action-button delete-button">Remove</button>
@@ -500,6 +542,22 @@ const ProfessionalDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            )}
+            
+            {activeTab === 'service-requests' && (
+              <div className="service-requests">
+                <p>Service requests functionality coming soon. This will show all pending and completed service requests from directors.</p>
+                <div className="placeholder-content">
+                  <h3>Upcoming Features:</h3>
+                  <ul>
+                    <li>View all director service requests</li>
+                    <li>Process incorporation requests</li>
+                    <li>Handle annual filing requests</li>
+                    <li>Manage board meeting requests</li>
+                    <li>Track request status and progress</li>
+                  </ul>
+                </div>
+              </div>
             )}
           </div>
         )}

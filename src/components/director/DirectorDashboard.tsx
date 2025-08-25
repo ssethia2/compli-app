@@ -10,17 +10,40 @@ const client = generateClient<Schema>();
 
 const DirectorDashboard: React.FC = () => {
   const { user } = useAuthenticator();
-  const [activeTab, setActiveTab] = useState('associations');
+  const [activeTab, setActiveTab] = useState('director-profile');
   const [associations, setAssociations] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [llps, setLlps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tempEntities, setTempEntities] = useState<any[]>([]);
   const [professionalAssignments, setProfessionalAssignments] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [showNameReservation, setShowNameReservation] = useState<{
     show: boolean;
     entityType: 'COMPANY' | 'LLP' | null;
   }>({ show: false, entityType: null });
+  const [directorAppointmentData, setDirectorAppointmentData] = useState({
+    din: '',
+    email: '',
+    pan: '',
+    appointmentDate: '',
+    category: 'PROMOTER',
+    designation: 'NON_EXECUTIVE',
+    authorizedSignatoryDin: ''
+  });
+  const [directorResignationData, setDirectorResignationData] = useState({
+    din: '',
+    resignationDate: '',
+    reason: '',
+    authorizedSignatoryDin: ''
+  });
+  const [directorKycData, setDirectorKycData] = useState({
+    din: '',
+    aadhar: '',
+    pan: '',
+    email: '',
+    mobile: ''
+  });
   
   // Store professional lookup map for associations display
   const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
@@ -51,6 +74,7 @@ const DirectorDashboard: React.FC = () => {
       
       const directorProfile = userProfileResult.data[0];
       console.log('Director profile:', directorProfile);
+      setUserProfile(directorProfile);
       
       // 2. Get all associations for this director
       const associationsResult = await client.models.DirectorAssociation.list({
@@ -251,6 +275,12 @@ const DirectorDashboard: React.FC = () => {
       
       <nav className="dashboard-tabs">
         <button 
+          className={activeTab === 'director-profile' ? 'active' : ''} 
+          onClick={() => setActiveTab('director-profile')}
+        >
+          Director Dashboard
+        </button>
+        <button 
           className={activeTab === 'associations' ? 'active' : ''} 
           onClick={() => setActiveTab('associations')}
         >
@@ -281,10 +311,10 @@ const DirectorDashboard: React.FC = () => {
           Entities in Progress ({tempEntities.length})
         </button>
         <button 
-          className={activeTab === 'requests' ? 'active' : ''} 
-          onClick={() => setActiveTab('requests')}
+          className={activeTab === 'services' ? 'active' : ''} 
+          onClick={() => setActiveTab('services')}
         >
-          Change Requests
+          Services
         </button>
       </nav>
       
@@ -309,6 +339,78 @@ const DirectorDashboard: React.FC = () => {
           <div className="loading">Loading your associations...</div>
         ) : (
           <>
+            {activeTab === 'director-profile' && (
+              <div>
+                <h2>Director Dashboard</h2>
+                <div className="director-profile-card">
+                  <div className="profile-header">
+                    <h3>Director Profile Information</h3>
+                  </div>
+                  <div className="profile-details">
+                    <div className="profile-row">
+                      <div className="profile-field">
+                        <label>Name:</label>
+                        <span>{userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Not specified'}</span>
+                      </div>
+                      <div className="profile-field">
+                        <label>Email:</label>
+                        <span>{userProfile?.email || 'Not specified'}</span>
+                      </div>
+                    </div>
+                    <div className="profile-row">
+                      <div className="profile-field">
+                        <label>DIN:</label>
+                        <span>{userProfile?.din || 'Not specified'}</span>
+                      </div>
+                      <div className="profile-field">
+                        <label>DIN Status:</label>
+                        <span className={`status-badge ${userProfile?.dinStatus?.toLowerCase() || 'unknown'}`}>
+                          {userProfile?.dinStatus || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="profile-row">
+                      <div className="profile-field">
+                        <label>DSC Status:</label>
+                        <span className={`status-badge ${userProfile?.dscStatus?.toLowerCase() || 'unknown'}`}>
+                          {userProfile?.dscStatus || 'Not specified'}
+                        </span>
+                      </div>
+                      <div className="profile-field">
+                        <label>PAN:</label>
+                        <span>{userProfile?.pan || 'Not specified'}</span>
+                      </div>
+                    </div>
+                    <div className="profile-row">
+                      <div className="profile-field full-width">
+                        <label>E-sign:</label>
+                        {userProfile?.eSignImageUrl ? (
+                          <div className="esign-display">
+                            <img 
+                              src={userProfile.eSignImageUrl} 
+                              alt="E-signature" 
+                              className="esign-image"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling!.textContent = 'Image failed to load';
+                              }}
+                            />
+                            <p className="esign-fallback" style={{display: 'none'}}></p>
+                          </div>
+                        ) : (
+                          <span>No e-signature uploaded</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="profile-actions">
+                    <button className="edit-profile-btn">Edit Profile</button>
+                    <button className="upload-esign-btn">Upload E-signature</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {activeTab === 'associations' && (
               <div>
                 <h2>My Director Associations</h2>
@@ -584,10 +686,528 @@ const DirectorDashboard: React.FC = () => {
               </div>
             )}
             
-            {activeTab === 'requests' && (
+            {activeTab === 'services' && (
               <div>
-                <h2>Change Requests</h2>
-                <p>Change request functionality coming soon...</p>
+                <h2>Services</h2>
+                <p className="tab-description">Request various compliance and corporate services for your entities and director profile.</p>
+                
+                <div className="services-grid">
+                  <div className="service-category">
+                    <h3>Company Services</h3>
+                    <div className="service-items">
+                      <button className="service-item">
+                        <div className="service-icon">🏢</div>
+                        <div className="service-details">
+                          <span className="service-name">Annual Filing</span>
+                          <span className="service-desc">Submit annual returns and compliance filings</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">📋</div>
+                        <div className="service-details">
+                          <span className="service-name">Board Resolution</span>
+                          <span className="service-desc">Draft and file board resolutions</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">📝</div>
+                        <div className="service-details">
+                          <span className="service-name">Amendment Services</span>
+                          <span className="service-desc">MOA/AOA amendments and updates</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="service-category">
+                    <h3>LLP Services</h3>
+                    <div className="service-items">
+                      <button className="service-item">
+                        <div className="service-icon">🏛️</div>
+                        <div className="service-details">
+                          <span className="service-name">Annual Filing</span>
+                          <span className="service-desc">LLP annual returns and compliance</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">🤝</div>
+                        <div className="service-details">
+                          <span className="service-name">Partner Changes</span>
+                          <span className="service-desc">Add/remove partners and designated partners</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">📄</div>
+                        <div className="service-details">
+                          <span className="service-name">Agreement Amendment</span>
+                          <span className="service-desc">Update partnership agreements</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="service-category">
+                    <h3>Director Services</h3>
+                    <div className="service-items">
+                      <button className="service-item" onClick={() => setActiveTab('director-appointment-form')}>
+                        <div className="service-icon">👤</div>
+                        <div className="service-details">
+                          <span className="service-name">Appointment/Change in Designation of Director</span>
+                          <span className="service-desc">Request appointment or change in designation of director</span>
+                        </div>
+                      </button>
+                      <button className="service-item" onClick={() => setActiveTab('director-resignation-form')}>
+                        <div className="service-icon">🔄</div>
+                        <div className="service-details">
+                          <span className="service-name">Director Resignation</span>
+                          <span className="service-desc">Process director resignation</span>
+                        </div>
+                      </button>
+                      <button className="service-item" onClick={() => setActiveTab('director-kyc-form')}>
+                        <div className="service-icon">📋</div>
+                        <div className="service-details">
+                          <span className="service-name">KYC of Director</span>
+                          <span className="service-desc">Submit KYC details for director verification</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="service-category">
+                    <h3>Minutes</h3>
+                    <div className="service-items">
+                      <button className="service-item">
+                        <div className="service-icon">📝</div>
+                        <div className="service-details">
+                          <span className="service-name">Board Meeting Minutes</span>
+                          <span className="service-desc">Prepare and file board meeting minutes</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">🏛️</div>
+                        <div className="service-details">
+                          <span className="service-name">AGM Minutes</span>
+                          <span className="service-desc">Annual general meeting documentation</span>
+                        </div>
+                      </button>
+                      <button className="service-item">
+                        <div className="service-icon">🎯</div>
+                        <div className="service-details">
+                          <span className="service-name">EGM Minutes</span>
+                          <span className="service-desc">Extraordinary general meeting minutes</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'director-appointment-form' && (
+              <div>
+                <div className="content-header">
+                  <h2>Appointment/Change in Designation of Director</h2>
+                  <button 
+                    className="cancel-button"
+                    onClick={() => setActiveTab('services')}
+                  >
+                    Back to Services
+                  </button>
+                </div>
+                
+                <div className="director-appointment-form">
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    console.log('Director appointment request:', directorAppointmentData);
+                    alert('Director appointment request submitted successfully!');
+                    setActiveTab('services');
+                  }}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="din">DIN of Director *</label>
+                        <input
+                          type="text"
+                          id="din"
+                          name="din"
+                          value={directorAppointmentData.din}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            din: e.target.value
+                          })}
+                          required
+                          placeholder="Enter DIN number"
+                          pattern="[0-9]{8}"
+                          title="DIN should be 8 digits"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="email">Email ID *</label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={directorAppointmentData.email}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            email: e.target.value
+                          })}
+                          required
+                          placeholder="Enter email address"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="pan">PAN of Director *</label>
+                        <input
+                          type="text"
+                          id="pan"
+                          name="pan"
+                          value={directorAppointmentData.pan}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            pan: e.target.value.toUpperCase()
+                          })}
+                          required
+                          placeholder="Enter PAN number"
+                          pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+                          title="PAN should be in format: ABCDE1234F"
+                          maxLength={10}
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="appointmentDate">Date of Appointment/Change in Designation *</label>
+                        <input
+                          type="date"
+                          id="appointmentDate"
+                          name="appointmentDate"
+                          value={directorAppointmentData.appointmentDate}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            appointmentDate: e.target.value
+                          })}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="category">Category *</label>
+                        <select
+                          id="category"
+                          name="category"
+                          value={directorAppointmentData.category}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            category: e.target.value
+                          })}
+                          required
+                        >
+                          <option value="PROMOTER">Promoter</option>
+                          <option value="PROFESSIONAL">Professional</option>
+                          <option value="INDEPENDENT">Independent</option>
+                          <option value="SMALL_SHAREHOLDER">Small Shareholder's Director</option>
+                        </select>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="designation">Director Designation *</label>
+                        <select
+                          id="designation"
+                          name="designation"
+                          value={directorAppointmentData.designation}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            designation: e.target.value
+                          })}
+                          required
+                        >
+                          <option value="EXECUTIVE">Executive Director</option>
+                          <option value="NON_EXECUTIVE">Non-Executive Director</option>
+                          <option value="CHAIRMAN_EXECUTIVE">Chairman & Executive Director</option>
+                          <option value="CHAIRMAN_NON_EXECUTIVE">Chairman & Non-Executive Director</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      
+                      <div className="form-group">
+                        <label htmlFor="authorizedSignatoryDin">DIN of Director Authorized to Sign *</label>
+                        <input
+                          type="text"
+                          id="authorizedSignatoryDin"
+                          name="authorizedSignatoryDin"
+                          value={directorAppointmentData.authorizedSignatoryDin}
+                          onChange={(e) => setDirectorAppointmentData({
+                            ...directorAppointmentData,
+                            authorizedSignatoryDin: e.target.value
+                          })}
+                          required
+                          placeholder="Enter authorizing director's DIN"
+                          pattern="[0-9]{8}"
+                          title="DIN should be 8 digits"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="button" className="cancel-button" onClick={() => setActiveTab('services')}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="submit-button">
+                        Submit Request
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'director-resignation-form' && (
+              <div>
+                <div className="content-header">
+                  <h2>Director Resignation</h2>
+                  <button 
+                    className="cancel-button"
+                    onClick={() => setActiveTab('services')}
+                  >
+                    Back to Services
+                  </button>
+                </div>
+                
+                <div className="director-resignation-form">
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    console.log('Director resignation request:', directorResignationData);
+                    alert('Director resignation request submitted successfully!');
+                    setActiveTab('services');
+                  }}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="resignationDin">DIN of Resigning Director *</label>
+                        <input
+                          type="text"
+                          id="resignationDin"
+                          name="resignationDin"
+                          value={directorResignationData.din}
+                          onChange={(e) => setDirectorResignationData({
+                            ...directorResignationData,
+                            din: e.target.value
+                          })}
+                          required
+                          placeholder="Enter DIN number"
+                          pattern="[0-9]{8}"
+                          title="DIN should be 8 digits"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="resignationDate">Date of Resignation *</label>
+                        <input
+                          type="date"
+                          id="resignationDate"
+                          name="resignationDate"
+                          value={directorResignationData.resignationDate}
+                          onChange={(e) => setDirectorResignationData({
+                            ...directorResignationData,
+                            resignationDate: e.target.value
+                          })}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="reason">Reason for Resignation *</label>
+                        <textarea
+                          id="reason"
+                          name="reason"
+                          value={directorResignationData.reason}
+                          onChange={(e) => setDirectorResignationData({
+                            ...directorResignationData,
+                            reason: e.target.value
+                          })}
+                          required
+                          rows={4}
+                          placeholder="Please provide the reason for resignation"
+                          style={{ resize: 'vertical' }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="resignationAuthorizedSignatoryDin">DIN of Director Authorized to Sign *</label>
+                        <input
+                          type="text"
+                          id="resignationAuthorizedSignatoryDin"
+                          name="resignationAuthorizedSignatoryDin"
+                          value={directorResignationData.authorizedSignatoryDin}
+                          onChange={(e) => setDirectorResignationData({
+                            ...directorResignationData,
+                            authorizedSignatoryDin: e.target.value
+                          })}
+                          required
+                          placeholder="Enter authorizing director's DIN"
+                          pattern="[0-9]{8}"
+                          title="DIN should be 8 digits"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="button" className="cancel-button" onClick={() => setActiveTab('services')}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="submit-button">
+                        Submit Resignation
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'director-kyc-form' && (
+              <div>
+                <div className="content-header">
+                  <h2>KYC of Director</h2>
+                  <button 
+                    className="cancel-button"
+                    onClick={() => setActiveTab('services')}
+                  >
+                    Back to Services
+                  </button>
+                </div>
+                
+                <div className="director-kyc-form">
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    console.log('Director KYC request:', directorKycData);
+                    alert('Director KYC details submitted successfully!');
+                    setActiveTab('services');
+                  }}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="kycDin">DIN of Director *</label>
+                        <input
+                          type="text"
+                          id="kycDin"
+                          name="kycDin"
+                          value={directorKycData.din}
+                          onChange={(e) => setDirectorKycData({
+                            ...directorKycData,
+                            din: e.target.value
+                          })}
+                          required
+                          placeholder="Enter DIN number"
+                          pattern="[0-9]{8}"
+                          title="DIN should be 8 digits"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="kycPan">PAN of Director *</label>
+                        <input
+                          type="text"
+                          id="kycPan"
+                          name="kycPan"
+                          value={directorKycData.pan}
+                          onChange={(e) => setDirectorKycData({
+                            ...directorKycData,
+                            pan: e.target.value.toUpperCase()
+                          })}
+                          required
+                          placeholder="Enter PAN number"
+                          pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+                          title="PAN should be in format: ABCDE1234F"
+                          maxLength={10}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="kycAadhar">Aadhar Number *</label>
+                        <input
+                          type="text"
+                          id="kycAadhar"
+                          name="kycAadhar"
+                          value={directorKycData.aadhar}
+                          onChange={(e) => {
+                            // Remove all non-digits and limit to 12 digits
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 12);
+                            setDirectorKycData({
+                              ...directorKycData,
+                              aadhar: value
+                            });
+                          }}
+                          required
+                          placeholder="Enter 12-digit Aadhar number"
+                          pattern="[0-9]{12}"
+                          title="Aadhar should be 12 digits"
+                          maxLength={12}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="kycEmail">Email ID *</label>
+                        <input
+                          type="email"
+                          id="kycEmail"
+                          name="kycEmail"
+                          value={directorKycData.email}
+                          onChange={(e) => setDirectorKycData({
+                            ...directorKycData,
+                            email: e.target.value
+                          })}
+                          required
+                          placeholder="Enter email address"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="kycMobile">Mobile Number *</label>
+                        <input
+                          type="tel"
+                          id="kycMobile"
+                          name="kycMobile"
+                          value={directorKycData.mobile}
+                          onChange={(e) => {
+                            // Remove all non-digits and limit to 10 digits
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                            setDirectorKycData({
+                              ...directorKycData,
+                              mobile: value
+                            });
+                          }}
+                          required
+                          placeholder="Enter 10-digit mobile number"
+                          pattern="[0-9]{10}"
+                          title="Mobile number should be 10 digits"
+                          maxLength={10}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="button" className="cancel-button" onClick={() => setActiveTab('services')}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="submit-button">
+                        Submit KYC Details
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
           </>

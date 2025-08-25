@@ -25,7 +25,10 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
     entityId: '',
     entityType: 'COMPANY',
     associationType: 'DIRECTOR',
+    din: '',
+    originalAppointmentDate: '',
     appointmentDate: '',
+    cessationDate: '',
   });
   
   const [entities, setEntities] = useState<EntityOption[]>([]);
@@ -172,8 +175,11 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         entityId: formData.entityId,
         entityType: formData.entityType as 'COMPANY' | 'LLP',
         associationType: formData.associationType as 'DIRECTOR' | 'DESIGNATED_PARTNER' | 'PARTNER',
-        appointmentDate: formData.appointmentDate ? formData.appointmentDate : new Date().toISOString().split('T')[0],
-        isActive: true
+        din: formData.din || undefined,
+        originalAppointmentDate: formData.originalAppointmentDate || undefined,
+        appointmentDate: formData.appointmentDate || undefined,
+        cessationDate: formData.cessationDate || undefined,
+        isActive: formData.cessationDate ? false : true
       });
       
       console.log('Director association created successfully:', result);
@@ -184,7 +190,10 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         entityId: '',
         entityType: 'COMPANY',
         associationType: 'DIRECTOR',
+        din: '',
+        originalAppointmentDate: '',
         appointmentDate: '',
+        cessationDate: '',
       });
       
       // Call success callback if provided
@@ -270,12 +279,48 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         </div>
         
         <div className="form-group">
-          <label htmlFor="appointmentDate">Appointment Date</label>
+          <label htmlFor="din">Director Identification Number (DIN)</label>
+          <input
+            type="text"
+            id="din"
+            name="din"
+            value={formData.din}
+            onChange={handleChange}
+            placeholder="Enter DIN number"
+          />
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="originalAppointmentDate">Original Appointment Date</label>
+            <input
+              type="date"
+              id="originalAppointmentDate"
+              name="originalAppointmentDate"
+              value={formData.originalAppointmentDate}
+              onChange={handleChange}
+            />
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="appointmentDate">Current Designation Date</label>
+            <input
+              type="date"
+              id="appointmentDate"
+              name="appointmentDate"
+              value={formData.appointmentDate}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="cessationDate">Cessation Date (if applicable)</label>
           <input
             type="date"
-            id="appointmentDate"
-            name="appointmentDate"
-            value={formData.appointmentDate}
+            id="cessationDate"
+            name="cessationDate"
+            value={formData.cessationDate}
             onChange={handleChange}
           />
         </div>
