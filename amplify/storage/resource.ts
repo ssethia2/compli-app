@@ -5,12 +5,12 @@ export const storage = defineStorage({
   access: (allow) => ({
     // Public access for company logos, etc.
     'public/*': [
-      allow.authenticated.to(['read']),
+      allow.authenticated.to(['read', 'write']),
       allow.guest.to(['read'])
     ],
     // User-specific documents (directors can access their own docs)
-    'users/{entity_id}/*': [
-      allow.authenticated.to(['read', 'write', 'delete'])
+    'users/{identity_id}/*': [
+      allow.entity('identity').to(['read', 'write', 'delete'])
     ],
     // Professional access to entity documents they manage
     'entities/{entity_id}/*': [

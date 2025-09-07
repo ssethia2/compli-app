@@ -30,7 +30,7 @@ const DirectorDashboard: React.FC = () => {
     pan: '',
     appointmentDate: '',
     category: 'PROMOTER',
-    designation: 'NON_EXECUTIVE',
+    designation: 'CHAIRMAN',
     authorizedSignatoryDin: ''
   });
   const [directorResignationData, setDirectorResignationData] = useState({
@@ -49,6 +49,32 @@ const DirectorDashboard: React.FC = () => {
   
   // Store professional lookup map for associations display
   const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
+  
+  // Function to get valid designations based on category
+  const getValidDesignations = (category: string): string[] => {
+    switch (category) {
+      case 'PROMOTER':
+        return ['CHAIRMAN', 'EXECUTIVE'];
+      case 'PROFESSIONAL':
+        return ['CHAIRMAN', 'EXECUTIVE', 'NON_EXECUTIVE'];
+      case 'INDEPENDENT':
+        return ['NON_EXECUTIVE'];
+      case 'SMALL_SHAREHOLDER':
+        return ['NON_EXECUTIVE'];
+      default:
+        return ['NON_EXECUTIVE'];
+    }
+  };
+  
+  // Function to handle category change and update designation accordingly
+  const handleCategoryChange = (newCategory: string) => {
+    const validDesignations = getValidDesignations(newCategory);
+    setDirectorAppointmentData({
+      ...directorAppointmentData,
+      category: newCategory,
+      designation: validDesignations[0] // Set to first valid designation
+    });
+  };
   
   // Fetch director's associations and related entities
   const fetchDirectorData = async () => {
@@ -933,10 +959,7 @@ const DirectorDashboard: React.FC = () => {
                           id="category"
                           name="category"
                           value={directorAppointmentData.category}
-                          onChange={(e) => setDirectorAppointmentData({
-                            ...directorAppointmentData,
-                            category: e.target.value
-                          })}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
                           required
                         >
                           <option value="PROMOTER">Promoter</option>
@@ -958,11 +981,22 @@ const DirectorDashboard: React.FC = () => {
                           })}
                           required
                         >
-                          <option value="EXECUTIVE">Executive Director</option>
-                          <option value="NON_EXECUTIVE">Non-Executive Director</option>
-                          <option value="CHAIRMAN_EXECUTIVE">Chairman & Executive Director</option>
-                          <option value="CHAIRMAN_NON_EXECUTIVE">Chairman & Non-Executive Director</option>
+                          {getValidDesignations(directorAppointmentData.category).map(designation => (
+                            <option key={designation} value={designation}>
+                              {designation === 'CHAIRMAN' ? 'Chairman' : 
+                               designation === 'EXECUTIVE' ? 'Executive Director' : 
+                               'Non-Executive Director'}
+                            </option>
+                          ))}
                         </select>
+                        <div className="form-help">
+                          <small>
+                            Valid for {directorAppointmentData.category === 'PROMOTER' ? 'Promoter' : 
+                                       directorAppointmentData.category === 'PROFESSIONAL' ? 'Professional' :
+                                       directorAppointmentData.category === 'INDEPENDENT' ? 'Independent' :
+                                       'Small Shareholder\'s Director'}: {getValidDesignations(directorAppointmentData.category).join(', ')}
+                          </small>
+                        </div>
                       </div>
                     </div>
                     

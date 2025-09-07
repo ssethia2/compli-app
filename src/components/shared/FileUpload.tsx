@@ -55,7 +55,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
     } else if (entityId && entityType) {
       return `entities/${entityId}/${timestamp}_${sanitizedName}`;
     } else {
-      return `users/${user?.username}/${timestamp}_${sanitizedName}`;
+      // For user documents, use public path since we're using authenticated access
+      return `public/users/${user?.username}/${timestamp}_${sanitizedName}`;
     }
   };
 
