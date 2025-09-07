@@ -13,6 +13,7 @@ interface DocumentListProps {
   showUploader?: boolean;
   allowDelete?: boolean;
   onDocumentDeleted?: (documentId: string) => void;
+  onRefresh?: () => void;
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
@@ -21,7 +22,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
   serviceRequestId,
   showUploader = false,
   allowDelete = false,
-  onDocumentDeleted
+  onDocumentDeleted,
+  onRefresh
 }) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +69,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const signedUrl = await getUrl({
         key: document.fileKey,
         options: {
-          expiresIn: 3600 // 1 hour
+          expiresIn: 3600, // 1 hour
+          validateObjectExistence: false // Don't validate object existence for download
         }
       });
 
@@ -75,12 +78,22 @@ const DocumentList: React.FC<DocumentListProps> = ({
       const link = document.createElement('a');
       link.href = signedUrl.url.toString();
       link.download = document.fileName;
+      link.target = '_blank'; // Open in new tab if direct download fails
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading document:', error);
-      alert('Failed to download document');
+      // Try opening the URL directly as fallback
+      try {
+        const fallbackUrl = await getUrl({
+          key: document.fileKey,
+          options: { expiresIn: 3600 }
+        });
+        window.open(fallbackUrl.url.toString(), '_blank');
+      } catch (fallbackError) {
+        alert('Failed to download document. Please try again.');
+      }
     } finally {
       setDownloadingIds(prev => {
         const newSet = new Set(prev);
@@ -103,6 +116,10 @@ const DocumentList: React.FC<DocumentListProps> = ({
       
       if (onDocumentDeleted) {
         onDocumentDeleted(document.id);
+      }
+      
+      if (onRefresh) {
+        onRefresh();
       }
     } catch (error) {
       console.error('Error deleting document:', error);

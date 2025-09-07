@@ -13,6 +13,7 @@ interface FileUploadProps {
   serviceRequestId?: string;
   documentType: 'IDENTITY' | 'ADDRESS_PROOF' | 'BOARD_RESOLUTION' | 'FINANCIAL_STATEMENT' | 'COMPLIANCE_CERTIFICATE' | 'OTHER';
   onUploadComplete?: (document: any) => void;
+  onRefresh?: () => void;
   maxFileSize?: number; // in bytes
   acceptedFileTypes?: string[];
   isMultiple?: boolean;
@@ -24,6 +25,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   serviceRequestId,
   documentType,
   onUploadComplete,
+  onRefresh,
   maxFileSize = 10 * 1024 * 1024, // 10MB default
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'],
   isMultiple = false
@@ -122,6 +124,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
           onUploadComplete(document);
         }
       });
+      
+      if (onRefresh) {
+        onRefresh();
+      }
       
       // Clear progress
       setUploadProgress({});

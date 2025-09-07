@@ -1,0 +1,123 @@
+.signature-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fafafa;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.signature-display.bordered {
+  border: 2px dashed #d1d5db;
+}
+
+.signature-display.empty {
+  background-color: #f9fafb;
+}
+
+.signature-display.loading {
+  background-color: #f3f4f6;
+}
+
+.signature-display.error {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.signature-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  background: white;
+  border-radius: 4px;
+}
+
+.signature-placeholder,
+.signature-loading,
+.signature-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.signature-placeholder svg,
+.signature-error svg {
+  color: #9ca3af;
+}
+
+.signature-loading {
+  color: #4b5563;
+}
+
+.loading-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.signature-label {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+}
+
+/* Signature display variations */
+.signature-display.compact {
+  min-height: 60px;
+}
+
+.signature-display.large {
+  min-height: 120px;
+}
+
+/* Print-friendly styles for PDF generation */
+@media print {
+  .signature-display {
+    border: 1px solid #000;
+    background: white;
+  }
+  
+  .signature-label {
+    display: none;
+  }
+  
+  .signature-image {
+    filter: contrast(1.2);
+  }
+}
+
+/* High contrast mode for accessibility */
+@media (prefers-contrast: high) {
+  .signature-display.bordered {
+    border-color: #000;
+  }
+  
+  .signature-placeholder,
+  .signature-loading,
+  .signature-error {
+    color: #000;
+  }
+}

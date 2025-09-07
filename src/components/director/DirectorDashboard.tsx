@@ -1,11 +1,13 @@
 // src/components/director/DirectorDashboard.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
 import NameReservationForm from './NameReservationForm';
 import FileUpload from '../shared/FileUpload';
 import DocumentList from '../shared/DocumentList';
+import ESignatureModal from '../shared/ESignatureModal';
+import SignatureDisplay from '../shared/SignatureDisplay';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -46,6 +48,55 @@ const DirectorDashboard: React.FC = () => {
     email: '',
     mobile: ''
   });
+  
+  // Selective refresh triggers
+  const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
+  const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
+  const [associationsRefreshTrigger, setAssociationsRefreshTrigger] = useState(0);
+  
+  // E-signature modal state
+  const [showESignModal, setShowESignModal] = useState(false);
+  
+  // Selective refresh functions (memoized to prevent unnecessary re-renders)
+  const refreshDocuments = useCallback(() => {
+    setDocumentsRefreshTrigger(prev => prev + 1);
+  }, []);
+  
+  const refreshProfile = useCallback(() => {
+    setProfileRefreshTrigger(prev => prev + 1);
+  }, []);
+  
+  const refreshAssociations = useCallback(() => {
+    setAssociationsRefreshTrigger(prev => prev + 1);
+  }, []);
+  
+  // Fetch only user profile data (for e-signature updates)
+  const fetchUserProfileOnly = async () => {
+    if (!user?.username) return;
+    
+    try {
+      const userProfileResult = await client.models.UserProfile.list({
+        filter: {
+          or: [
+            { userId: { eq: user.username } },
+            { email: { eq: user.signInDetails?.loginId || user.username } }
+          ]
+        }
+      });
+      
+      if (userProfileResult.data.length > 0) {
+        setUserProfile(userProfileResult.data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+  
+  const handleSignatureSaved = useCallback((signatureUrl: string) => {
+    // Trigger profile refresh (effect will handle the actual fetching)
+    refreshProfile();
+    alert('E-signature saved successfully!');
+  }, [refreshProfile]);
   
   // Store professional lookup map for associations display
   const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
@@ -293,6 +344,20 @@ const DirectorDashboard: React.FC = () => {
     fetchTempEntities();
   }, [user?.username]);
   
+  // Profile refresh effect
+  useEffect(() => {
+    if (profileRefreshTrigger > 0) {
+      fetchUserProfileOnly();
+    }
+  }, [profileRefreshTrigger]);
+  
+  // Associations refresh effect  
+  useEffect(() => {
+    if (associationsRefreshTrigger > 0) {
+      fetchDirectorData();
+    }
+  }, [associationsRefreshTrigger]);
+  
   return (
     <div className="director-dashboard">
       <header className="dashboard-header">
@@ -417,36 +482,33 @@ const DirectorDashboard: React.FC = () => {
                     </div>
                     <div className="profile-row">
                       <div className="profile-field full-width">
-                        <label>E-sign:</label>
-                        {userProfile?.eSignImageUrl ? (
-                          <div className="esign-display">
-                            <img 
-                              src={userProfile.eSignImageUrl} 
-                              alt="E-signature" 
-                              className="esign-image"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                                (e.target as HTMLImageElement).nextElementSibling!.textContent = 'Image failed to load';
-                              }}
-                            />
-                            <p className="esign-fallback" style={{display: 'none'}}></p>
-                          </div>
-                        ) : (
-                          <span>No e-signature uploaded</span>
-                        )}
+                        <label>E-signature:</label>
+                        <SignatureDisplay
+                          key={profileRefreshTrigger} // Force re-render when profile refreshes
+                          signatureKey={userProfile?.eSignImageUrl}
+                          width="250px"
+                          height="100px"
+                          showBorder={true}
+                          showLabel={false}
+                        />
                       </div>
                     </div>
                   </div>
                   <div className="profile-actions">
                     <button className="edit-profile-btn">Edit Profile</button>
-                    <button className="upload-esign-btn">Upload E-signature</button>
+                    <button 
+                      className="upload-esign-btn"
+                      onClick={() => setShowESignModal(true)}
+                    >
+                      {userProfile?.eSignImageUrl ? 'Update E-signature' : 'Add E-signature'}
+                    </button>
                   </div>
                 </div>
               </div>
             )}
             
             {activeTab === 'associations' && (
-              <div>
+              <div key={associationsRefreshTrigger}>
                 <h2>My Director Associations</h2>
                 <table className="data-table">
                   <thead>
@@ -989,14 +1051,6 @@ const DirectorDashboard: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                        <div className="form-help">
-                          <small>
-                            Valid for {directorAppointmentData.category === 'PROMOTER' ? 'Promoter' : 
-                                       directorAppointmentData.category === 'PROFESSIONAL' ? 'Professional' :
-                                       directorAppointmentData.category === 'INDEPENDENT' ? 'Independent' :
-                                       'Small Shareholder\'s Director'}: {getValidDesignations(directorAppointmentData.category).join(', ')}
-                          </small>
-                        </div>
                       </div>
                     </div>
                     
@@ -1332,10 +1386,7 @@ const DirectorDashboard: React.FC = () => {
                     <h3>Upload Documents</h3>
                     <FileUpload
                       documentType="IDENTITY"
-                      onUploadComplete={() => {
-                        // Refresh document list after upload
-                        window.location.reload();
-                      }}
+                      onRefresh={refreshDocuments}
                       maxFileSize={15 * 1024 * 1024} // 15MB for director documents
                       acceptedFileTypes={['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']}
                       isMultiple={true}
@@ -1344,12 +1395,10 @@ const DirectorDashboard: React.FC = () => {
                   
                   <div className="documents-list-section">
                     <DocumentList
+                      key={documentsRefreshTrigger} // Force re-render when refresh trigger changes
                       showUploader={false}
                       allowDelete={true}
-                      onDocumentDeleted={() => {
-                        // Refresh after delete
-                        window.location.reload();
-                      }}
+                      onRefresh={refreshDocuments}
                     />
                   </div>
                 </div>
@@ -1358,6 +1407,12 @@ const DirectorDashboard: React.FC = () => {
           </>
         )}
       </div>
+      
+      <ESignatureModal
+        isOpen={showESignModal}
+        onClose={() => setShowESignModal(false)}
+        onSignatureSaved={handleSignatureSaved}
+      />
     </div>
   );
 };

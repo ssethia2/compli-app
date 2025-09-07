@@ -1,0 +1,214 @@
+.esignature-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.esignature-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.esignature-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.esignature-modal-header h2 {
+  margin: 0;
+  color: #374151;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-button:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.esignature-modal-content {
+  padding: 1.5rem;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mode-selector button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.mode-selector button.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+}
+
+.mode-selector button:hover {
+  color: #374151;
+}
+
+.draw-signature-section,
+.upload-signature-section {
+  text-align: center;
+}
+
+.canvas-container {
+  margin: 1.5rem 0;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  display: inline-block;
+  background: white;
+}
+
+.signature-canvas {
+  display: block;
+  cursor: crosshair;
+  border-radius: 6px;
+}
+
+.canvas-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.clear-button,
+.save-button {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-button {
+  background: white;
+  color: #374151;
+}
+
+.clear-button:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.save-button {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-upload-area {
+  margin: 1.5rem 0;
+  padding: 2rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background-color: #f9fafb;
+}
+
+.file-upload-area input[type="file"] {
+  margin-bottom: 0.5rem;
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0.5rem 0 0 0;
+}
+
+.uploading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.upload-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .esignature-modal {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .canvas-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+  
+  .signature-canvas {
+    max-width: 100%;
+  }
+  
+  .canvas-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .clear-button,
+  .save-button {
+    width: 100%;
+  }
+}
