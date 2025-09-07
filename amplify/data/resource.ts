@@ -14,7 +14,7 @@ const schema = a.schema({
   UserProfile: a.model({
     userId: a.string().required(),
     email: a.string().required(),
-    role: a.enum(['DIRECTORS', 'PROFESSIONALS']),
+    role: a.enum(['DIRECTORS', 'PROFESSIONALS', 'ADMIN']),
     displayName: a.string(),
     // Director-specific fields
     din: a.string(),
@@ -31,7 +31,9 @@ const schema = a.schema({
     // Service requests made by this user
     serviceRequests: a.hasMany('ServiceRequest', 'directorId'),
     // Documents uploaded by this user
-    uploadedDocuments: a.hasMany('Document', 'uploadedBy')
+    uploadedDocuments: a.hasMany('Document', 'uploadedBy'),
+    // Asset templates created by admin users
+    createdAssets: a.hasMany('AssetTemplate', 'createdBy')
   }).authorization(
     allow => [
       allow.authenticated().to(['read', 'create', 'update', 'delete'])
@@ -164,6 +166,31 @@ const schema = a.schema({
     // RELATIONSHIPS
     uploader: a.belongsTo('UserProfile', 'uploadedBy'),
     serviceRequest: a.belongsTo('ServiceRequest', 'serviceRequestId')
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
+    ]
+  ),
+
+  // Asset Template model for admin-managed forms and templates
+  AssetTemplate: a.model({
+    templateName: a.string().required(),
+    templateType: a.enum(['FORM_TEMPLATE', 'DOCUMENT_TEMPLATE', 'COMPLIANCE_TEMPLATE', 'EMAIL_TEMPLATE']),
+    fileKey: a.string().required(), // S3 key
+    fileName: a.string().required(),
+    fileSize: a.integer(),
+    mimeType: a.string(),
+    description: a.string(),
+    version: a.string().default('1.0'),
+    isActive: a.boolean().default(true),
+    metadata: a.string(), // JSON string for additional template metadata
+    createdBy: a.string().required(),
+    updatedBy: a.string(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime(),
+    
+    // RELATIONSHIPS
+    creator: a.belongsTo('UserProfile', 'createdBy')
   }).authorization(
     allow => [
       allow.authenticated().to(['read', 'create', 'update', 'delete'])

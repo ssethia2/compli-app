@@ -1,26 +1,33 @@
 {
   "project": {
     "name": "Corporate Compliance Portal",
-    "description": "A comprehensive compliance management application for corporate entities and compliance professionals",
-    "version": "1.0.0",
+    "description": "A comprehensive compliance management application for corporate entities and compliance professionals with document management and e-signature capabilities",
+    "version": "1.2.0",
     "framework": "React + TypeScript + AWS Amplify Gen 2",
-    "lastUpdated": "2025-07-03"
+    "lastUpdated": "2025-09-07"
   },
   "architecture": {
     "frontend": "React 18 with TypeScript",
     "backend": "AWS Amplify Gen 2",
     "authentication": "Amazon Cognito User Pools",
     "database": "AWS AppSync + DynamoDB",
-    "deployment": "AWS Amplify Hosting"
+    "storage": "AWS S3 (Amplify Storage)",
+    "deployment": "AWS Amplify Hosting",
+    "pdfGeneration": "jsPDF + html2canvas"
   },
   "userRoles": {
     "DIRECTORS": {
       "description": "Company/LLP directors who can create entities and manage their associations",
-      "permissions": ["create entities", "view own entities", "submit name reservations", "view professional assignments"]
+      "permissions": ["create entities", "view own entities", "submit name reservations", "view professional assignments", "upload documents", "create e-signatures", "submit service requests"]
     },
     "PROFESSIONALS": {
       "description": "Compliance professionals who manage multiple entities and director relationships",
-      "permissions": ["manage assigned entities", "view/edit companies and LLPs", "manage director associations", "service management"]
+      "permissions": ["manage assigned entities", "view/edit companies and LLPs", "manage director associations", "service management", "process service requests", "view entity documents"]
+    },
+    "ADMIN": {
+      "description": "System administrators with backdoor access for asset management only",
+      "permissions": ["manage form templates", "upload document templates", "manage compliance templates", "configure email templates", "asset library management"],
+      "restrictions": ["NO access to user personal data", "NO access to entity information", "NO access to financial data", "Asset management ONLY"]
     }
   },
   "components": {
@@ -35,12 +42,14 @@
         "path": "src/components/director/DirectorDashboard.tsx",
         "description": "Main dashboard for directors with multiple tabs",
         "features": [
+          "Director Profile - Personal info with e-signature display",
           "My Associations - View entity associations",
-          "Companies - View associated companies",
-          "LLPs - View associated LLPs", 
+          "Companies - View associated companies", 
+          "LLPs - View associated LLPs",
           "Professional Associations - See assigned compliance professionals",
           "Entities in Progress - Create new entities with name reservation",
-          "Change Requests - Future functionality"
+          "Services - Request various compliance services",
+          "My Documents - Upload and manage personal documents"
         ]
       },
       "NameReservationForm": {
@@ -89,24 +98,63 @@
         "path": "src/components/professional/AssociateDirectorForm.tsx",
         "description": "Form for associating directors with entities"
       }
+    },
+    "shared": {
+      "FileUpload": {
+        "path": "src/components/shared/FileUpload.tsx",
+        "description": "Drag-and-drop file upload component with S3 integration",
+        "features": ["Drag & drop", "File validation", "Progress tracking", "Multiple file support"]
+      },
+      "DocumentList": {
+        "path": "src/components/shared/DocumentList.tsx", 
+        "description": "Document listing with download/delete functionality",
+        "features": ["Document preview", "Download with signed URLs", "Delete functionality", "File type icons"]
+      },
+      "ESignatureModal": {
+        "path": "src/components/shared/ESignatureModal.tsx",
+        "description": "E-signature creation modal with draw/upload options",
+        "features": ["Canvas drawing", "File upload", "Touch support", "S3 storage"]
+      },
+      "SignatureDisplay": {
+        "path": "src/components/shared/SignatureDisplay.tsx",
+        "description": "E-signature display component with loading states",
+        "features": ["Error handling", "Loading states", "Placeholder display", "PDF-ready format"]
+      }
+    },
+    "admin": {
+      "AdminBackdoorLogin": {
+        "path": "src/components/admin/AdminBackdoorLogin.tsx",
+        "description": "Secure admin access portal with code-based authentication",
+        "features": ["Admin code verification", "Security warnings", "Access logging"]
+      },
+      "AdminPage": {
+        "path": "src/components/admin/AdminPage.tsx",
+        "description": "Dedicated admin page accessible via /admin route",
+        "features": ["Standalone admin interface", "No authentication required", "Asset management only"]
+      },
+      "AdminDashboard": {
+        "path": "src/components/admin/AdminDashboard.tsx",
+        "description": "Admin dashboard for asset template management",
+        "features": ["Template upload/download", "Asset categorization", "Version management", "System information"]
+      }
     }
   },
   "dataModels": {
     "UserProfile": {
       "description": "User profile information linking Cognito users to application roles",
-      "fields": ["userId", "email", "role", "displayName"],
-      "relationships": ["professionalAssignments", "directorAssociations", "changeRequests"]
+      "fields": ["userId", "email", "role", "displayName", "din", "dinStatus", "dscStatus", "pan", "eSignImageUrl"],
+      "relationships": ["professionalAssignments", "directorAssociations", "serviceRequests", "uploadedDocuments"]
     },
     "Company": {
       "description": "Company entity information",
-      "fields": ["cinNumber", "companyName", "rocName", "dateOfIncorporation", "emailId", "registeredAddress", "authorizedCapital", "paidUpCapital", "numberOfDirectors", "companyStatus", "companyType"],
-      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS"],
-      "types": ["PRIVATE", "PUBLIC", "ONE_PERSON", "SECTION_8"]
+      "fields": ["cinNumber", "companyName", "rocName", "dateOfIncorporation", "emailId", "registeredAddress", "authorizedCapital", "paidUpCapital", "numberOfDirectors", "companyStatus", "companyType", "lastAnnualFilingDate", "financialYear", "agmDate"],
+      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS", "STRUCK_OFF", "AMALGAMATED"],
+      "types": ["PRIVATE", "PUBLIC", "ONE_PERSON", "SECTION_8", "GOVERNMENT", "NBFC", "NIDHI", "IFSC"]
     },
     "LLP": {
       "description": "Limited Liability Partnership entity information", 
-      "fields": ["llpIN", "llpName", "rocName", "dateOfIncorporation", "emailId", "numberOfPartners", "numberOfDesignatedPartners", "registeredAddress", "totalObligationOfContribution", "llpStatus"],
-      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS"]
+      "fields": ["llpIN", "llpName", "rocName", "dateOfIncorporation", "emailId", "numberOfPartners", "numberOfDesignatedPartners", "registeredAddress", "totalObligationOfContribution", "llpStatus", "lastAnnualFilingDate", "financialYear"],
+      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS", "STRUCK_OFF", "AMALGAMATED"]
     },
     "ProfessionalAssignment": {
       "description": "Junction table linking professionals to entities they manage",
@@ -115,14 +163,28 @@
     },
     "DirectorAssociation": {
       "description": "Junction table linking directors to entities they're associated with",
-      "fields": ["userId", "entityId", "entityType", "associationType", "appointmentDate", "isActive"],
+      "fields": ["userId", "entityId", "entityType", "associationType", "din", "originalAppointmentDate", "appointmentDate", "cessationDate", "isActive"],
       "types": ["DIRECTOR", "DESIGNATED_PARTNER", "PARTNER"]
     },
-    "ChangeRequest": {
-      "description": "Change requests submitted by directors",
-      "fields": ["requestId", "directorId", "entityId", "entityType", "changeType", "requestDetails", "status", "createdAt", "updatedAt", "processedBy", "comments"],
-      "changeTypes": ["UPDATE_INFO", "ADD_DIRECTOR", "REMOVE_DIRECTOR", "STATUS_CHANGE", "OTHER"],
-      "status": ["PENDING", "APPROVED", "REJECTED", "COMPLETED"]
+    "ServiceRequest": {
+      "description": "Service requests submitted by directors (replaces ChangeRequest)",
+      "fields": ["requestId", "directorId", "serviceType", "requestData", "status", "createdAt", "updatedAt", "processedBy", "comments", "priority"],
+      "serviceTypes": ["DIRECTOR_APPOINTMENT", "DIRECTOR_RESIGNATION", "DIRECTOR_KYC", "COMPANY_ANNUAL_FILING", "LLP_ANNUAL_FILING", "BOARD_RESOLUTION", "BOARD_MEETING_MINUTES", "AGM_MINUTES", "EGM_MINUTES"],
+      "status": ["PENDING", "IN_PROGRESS", "APPROVED", "REJECTED", "COMPLETED"],
+      "priority": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "Document": {
+      "description": "Document management model for file uploads",
+      "fields": ["fileName", "fileKey", "fileSize", "mimeType", "uploadedBy", "uploadedAt", "documentType", "entityId", "entityType", "serviceRequestId", "isPublic"],
+      "documentTypes": ["IDENTITY", "ADDRESS_PROOF", "BOARD_RESOLUTION", "FINANCIAL_STATEMENT", "COMPLIANCE_CERTIFICATE", "OTHER"],
+      "relationships": ["uploader", "serviceRequest"]
+    },
+    "AssetTemplate": {
+      "description": "Admin-managed template assets (forms, documents, email templates)",
+      "fields": ["templateName", "templateType", "fileKey", "fileName", "fileSize", "mimeType", "description", "version", "isActive", "metadata", "createdBy", "updatedBy", "createdAt", "updatedAt"],
+      "templateTypes": ["FORM_TEMPLATE", "DOCUMENT_TEMPLATE", "COMPLIANCE_TEMPLATE", "EMAIL_TEMPLATE"],
+      "relationships": ["creator"],
+      "adminOnly": true
     }
   },
   "features": {
@@ -133,10 +195,22 @@
       "storage": "localStorage (temporary, pending database model implementation)"
     },
     "serviceManagement": {
-      "description": "Service-based action system for entity management",
-      "implementedServices": ["Incorporation Service"],
-      "plannedServices": ["Annual Filing Service", "Board Meeting Service"],
-      "incorporationActions": ["View Certificate", "Update Details", "Change Registered Office", "Modify MOA/AOA"]
+      "description": "Service request system for compliance services",
+      "implementedServices": ["Director Appointment", "Director Resignation", "Director KYC"],
+      "plannedServices": ["Company Annual Filing", "LLP Annual Filing", "Board Resolutions", "Meeting Minutes"],
+      "features": ["Form-based requests", "Status tracking", "Professional workflow", "Priority management"]
+    },
+    "documentManagement": {
+      "description": "File upload and document management system with S3 integration",
+      "features": ["Drag & drop upload", "Document categorization", "Download with signed URLs", "File validation", "Progress tracking"],
+      "storage": "AWS S3 via Amplify Storage",
+      "implementation": "Implemented with selective refresh optimization"
+    },
+    "eSignature": {
+      "description": "Digital signature creation and management",
+      "features": ["Canvas drawing", "Image upload", "Touch support", "PDF-ready format", "S3 storage"],
+      "integration": "Signature utilities for PDF generation",
+      "implementation": "Complete with SignatureDisplay component"
     },
     "roleBasedAccess": {
       "description": "Dual-role system with different dashboards and permissions",
@@ -144,7 +218,20 @@
     },
     "professionalAssignments": {
       "description": "System for assigning compliance professionals to manage entities",
-      "features": ["Automatic assignment on entity creation", "Professional association tracking", "Director visibility into assigned professionals"]
+      "features": ["Automatic assignment on entity creation", "Professional association tracking", "Director visibility into assigned professionals", "Service request processing"]
+    },
+    "selectiveRefresh": {
+      "description": "Optimized component refresh system",
+      "features": ["Profile-only refresh", "Document-only refresh", "Association-only refresh", "Memoized callbacks"],
+      "implementation": "Prevents full dashboard reloads for better performance"
+    },
+    "adminAccess": {
+      "description": "Secure admin access system for asset management via dedicated route",
+      "features": ["URL-based access", "Code-based authentication", "Asset template management", "No user data access"],
+      "security": ["Access logging", "Session isolation", "Limited permissions", "Asset-only access", "No Cognito authentication required"],
+      "access": "/admin URL route",
+      "codes": ["COMPLIANCE_ADMIN_2025", "ASSET_MANAGER_2025"],
+      "implementation": "Separate route bypasses normal user authentication for admin functions only"
     }
   },
   "configuration": {
@@ -153,16 +240,21 @@
         "file": "amplify/auth/resource.ts",
         "provider": "Cognito User Pools",
         "loginMethod": "Email",
-        "groups": ["DIRECTORS", "PROFESSIONALS"]
+        "groups": ["DIRECTORS", "PROFESSIONALS", "ADMIN"]
       },
       "data": {
         "file": "amplify/data/resource.ts", 
         "authorization": "User Pool",
-        "models": 6
+        "models": 8
+      },
+      "storage": {
+        "file": "amplify/storage/resource.ts",
+        "provider": "S3",
+        "accessPatterns": ["public/*", "users/{identity_id}/*", "entities/{entity_id}/*", "service-requests/{entity_id}/*"]
       },
       "backend": {
         "file": "amplify/backend.ts",
-        "resources": ["auth", "data"]
+        "resources": ["auth", "data", "storage"]
       }
     },
     "deployment": {
@@ -179,10 +271,24 @@
       "src/components/professional/ProfessionalDashboard.css",
       "src/components/professional/ServiceModal.css",
       "src/components/professional/Forms.css",
+      "src/components/shared/FileUpload.css",
+      "src/components/shared/DocumentList.css",
+      "src/components/shared/ESignatureModal.css",
+      "src/components/shared/SignatureDisplay.css",
+      "src/components/admin/AdminBackdoorLogin.css",
+      "src/components/admin/AdminDashboard.css",
+      "src/components/admin/AdminPage.css",
       "src/App.css",
       "src/index.css"
     ],
-    "design": "Professional, responsive, accessibility-friendly"
+    "design": "Professional, responsive, accessibility-friendly, print-optimized for PDF generation"
+  },
+  "utilities": {
+    "signatureUtils": {
+      "file": "src/utils/signatureUtils.ts",
+      "description": "Utility functions for e-signature PDF integration",
+      "functions": ["getSignatureForPDF", "createSignatureSVG", "prepareSignatureForJsPDF", "validateSignature"]
+    }
   },
   "futureEnhancements": {
     "database": {
@@ -193,6 +299,11 @@
       "description": "Complete multi-step entity creation process beyond name reservation",
       "priority": "High"
     },
+    "pdfGeneration": {
+      "description": "Automated PDF document generation with e-signatures",
+      "priority": "High",
+      "implementation": "Use jsPDF with signature utilities"
+    },
     "notifications": {
       "description": "Real-time notifications for status changes and assignments",
       "priority": "Medium"
@@ -201,20 +312,34 @@
       "description": "Compliance reporting and analytics dashboard",
       "priority": "Medium"
     },
-    "documentManagement": {
-      "description": "File upload and document management system",
-      "priority": "Low"
+    "advancedFileManagement": {
+      "description": "Version control, bulk operations, file sharing",
+      "priority": "Low",
+      "note": "Basic document management is implemented"
     }
   },
   "technicalDebt": {
-    "todos": [
+    "authentication": [
       "Implement Lambda trigger for automatic Cognito group assignment",
       "Restore proper group-based authorization instead of allow.authenticated()",
       "Test role-based permissions thoroughly", 
       "Consider implementing API-level role checks as additional security layer",
-      "Remove temporary simplified auth and use proper Cognito groups",
+      "Remove temporary simplified auth and use proper Cognito groups"
+    ],
+    "storage": [
+      "Deploy S3 storage configuration (needs ampx sandbox deployment)",
+      "Fix S3 permissions for document uploads",
+      "Implement CloudFront distribution for faster file access"
+    ],
+    "database": [
       "Create TempEntity database model",
-      "Implement actual database persistence for name reservations"
+      "Implement actual database persistence for name reservations",
+      "Add indexing for performance optimization"
+    ],
+    "performance": [
+      "Consider implementing React.lazy for code splitting",
+      "Add service worker for offline document access",
+      "Optimize large file upload handling"
     ]
   },
   "functionalTodos": {
@@ -222,14 +347,75 @@
     "priority": "Low",
     "todos": []
   },
+  "reliabilityTodos": {
+    "description": "Critical reliability and error handling improvements",
+    "priority": "High",
+    "todos": [
+      "Implement error boundaries around major dashboard sections",
+      "Add try-catch blocks in async operations with user-friendly error messages",
+      "Create centralized error logging and reporting system",
+      "Add loading states for all async operations",
+      "Implement retry mechanisms for failed API calls",
+      "Add network connectivity checks and offline handling"
+    ]
+  },
+  "maintainabilityTodos": {
+    "description": "Code maintainability and architecture improvements", 
+    "priority": "Medium-High",
+    "todos": [
+      "Break down DirectorDashboard.tsx (1380+ lines) into smaller components:",
+      "  - ProfileTab.tsx (profile section)",
+      "  - AssociationsTab.tsx (associations management)", 
+      "  - ServicesTab.tsx (service request forms)",
+      "  - DocumentsTab.tsx (document management)",
+      "  - EntitiesTab.tsx (entities in progress)",
+      "Extract service request forms into separate components",
+      "Create shared hooks for common data fetching patterns",
+      "Implement centralized state management (Context API or Redux)",
+      "Add comprehensive TypeScript interfaces for all data models",
+      "Create reusable form validation utilities",
+      "Standardize loading and error state patterns across components"
+    ]
+  },
   "deployment": {
-    "status": "In Progress",
-    "lastAttempt": "2025-07-03",
-    "issues": [
-      "CloudFormation User Pool attribute configuration",
-      "Cognito groups setup",
-      "Auth provider configuration"
+    "status": "Ready for S3 Storage Deployment",
+    "lastUpdated": "2025-09-07",
+    "currentIssues": [
+      "S3 storage needs deployment via ampx sandbox",
+      "Document upload failing due to missing bucket configuration"
     ],
-    "resolution": "Simplified auth configuration to remove unused user attributes"
+    "completedIssues": [
+      "CloudFormation User Pool attribute configuration - RESOLVED",
+      "Cognito groups setup - RESOLVED", 
+      "Auth provider configuration - RESOLVED"
+    ],
+    "nextSteps": [
+      "Deploy storage configuration",
+      "Test document upload/download functionality",
+      "Deploy to production environment"
+    ]
+  },
+  "structuralAnalysis": {
+    "strengths": [
+      "Clear separation of concerns between director/professional roles",
+      "Modular component architecture with shared components",
+      "Proper TypeScript implementation",
+      "Optimized performance with selective refresh",
+      "Comprehensive data model relationships"
+    ],
+    "weaknesses": [
+      "Heavy reliance on localStorage for temporary data",
+      "Large component files (DirectorDashboard.tsx is 1380+ lines)",
+      "Authentication still using simplified permissions",
+      "No error boundary implementation",
+      "Missing loading states in some components"
+    ],
+    "refactoringNeeds": [
+      "Break down DirectorDashboard into smaller sub-components",
+      "Implement proper error boundaries",
+      "Create centralized state management (Context/Redux)",
+      "Extract service forms into separate components",
+      "Implement proper caching strategy"
+    ]
   }
 }

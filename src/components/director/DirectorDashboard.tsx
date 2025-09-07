@@ -8,6 +8,7 @@ import FileUpload from '../shared/FileUpload';
 import DocumentList from '../shared/DocumentList';
 import ESignatureModal from '../shared/ESignatureModal';
 import SignatureDisplay from '../shared/SignatureDisplay';
+import PendingTasks from '../shared/PendingTasks';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -414,6 +415,12 @@ const DirectorDashboard: React.FC = () => {
           onClick={() => setActiveTab('documents')}
         >
           My Documents
+        </button>
+        <button 
+          className={activeTab === 'tasks' ? 'active' : ''} 
+          onClick={() => setActiveTab('tasks')}
+        >
+          Pending Tasks
         </button>
       </nav>
       
@@ -1403,6 +1410,13 @@ const DirectorDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+            )}
+            
+            {activeTab === 'tasks' && (
+              <PendingTasks 
+                userId={user?.username || ''} 
+                userRole="DIRECTORS"
+              />
             )}
           </>
         )}

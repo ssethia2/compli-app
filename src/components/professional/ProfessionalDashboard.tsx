@@ -7,6 +7,7 @@ import CompanyForm from './CompanyForm';
 import LLPForm from './LLPForm';
 import AssociateDirectorForm from './AssociateDirectorForm';
 import ServiceModal from './ServiceModal';
+import PendingTasks from '../shared/PendingTasks';
 import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
@@ -512,6 +513,12 @@ const ProfessionalDashboard: React.FC = () => {
         >
           Service Requests
         </button>
+        <button 
+          className={activeTab === 'pending-tasks' ? 'active' : ''} 
+          onClick={() => { setActiveTab('pending-tasks'); setShowAddForm(false); }}
+        >
+          Pending Tasks
+        </button>
       </nav>
       
       <div className="dashboard-content">
@@ -521,14 +528,17 @@ const ProfessionalDashboard: React.FC = () => {
             {activeTab === 'llps' && 'LLP Master Dashboard'}
             {activeTab === 'associations' && 'Director Dashboard'}
             {activeTab === 'service-requests' && 'Service Requests'}
+            {activeTab === 'pending-tasks' && 'Pending Tasks'}
           </h2>
           
-          <button 
-            className="add-button"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? 'Cancel' : `Add ${activeTab === 'companies' ? 'Company' : activeTab === 'llps' ? 'LLP' : activeTab === 'associations' ? 'Association' : activeTab === 'service-requests' ? 'Service Request' : 'Item'}`}
-          </button>
+          {activeTab !== 'pending-tasks' && (
+            <button 
+              className="add-button"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              {showAddForm ? 'Cancel' : `Add ${activeTab === 'companies' ? 'Company' : activeTab === 'llps' ? 'LLP' : activeTab === 'associations' ? 'Association' : activeTab === 'service-requests' ? 'Service Request' : 'Item'}`}
+            </button>
+          )}
         </div>
         
         {renderAddForm()}
@@ -744,6 +754,13 @@ const ProfessionalDashboard: React.FC = () => {
                 <h2>Service Requests</h2>
                 <ServiceRequestsTab />
               </div>
+            )}
+            
+            {activeTab === 'pending-tasks' && (
+              <PendingTasks 
+                userId={user?.username || ''}
+                userRole="PROFESSIONALS"
+              />
             )}
           </div>
         )}

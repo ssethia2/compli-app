@@ -6,20 +6,28 @@ import "./index.css";
 import { Amplify } from "aws-amplify";
 import outputs from "../amplify_outputs.json";
 import '@aws-amplify/ui-react/styles.css';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from "./App";
+import AdminPage from "./components/admin/AdminPage";
 
 Amplify.configure(outputs);
 
-// Simple main file without complex state management
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Authenticator>
-        {({ signOut, user }) => (
-          <App signOut={signOut} user={user} />
-        )}
-      </Authenticator>
+      <Routes>
+        {/* Admin route - no authentication required */}
+        <Route path="/admin" element={<AdminPage />} />
+        
+        {/* Main app routes - require authentication */}
+        <Route path="/*" element={
+          <Authenticator>
+            {({ signOut, user }) => (
+              <App signOut={signOut} user={user} />
+            )}
+          </Authenticator>
+        } />
+      </Routes>
     </BrowserRouter>
   </React.StrictMode>
 );

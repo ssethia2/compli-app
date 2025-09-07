@@ -1,0 +1,140 @@
+.admin-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a0f08 25%, #2d1810 50%, #1a0f08 75%, #0f0f0f 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 107, 53, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(255, 107, 53, 0.03) 0%, transparent 50%);
+  z-index: -1;
+}
+
+.admin-page-background {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #333;
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 107, 53, 0.1);
+  width: 100%;
+  max-width: 600px;
+  position: relative;
+}
+
+.admin-page-content {
+  padding: 2rem;
+}
+
+.admin-page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #333;
+}
+
+.admin-page-header h1 {
+  margin: 0;
+  color: #ff6b35;
+  font-size: 2rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+}
+
+.admin-page-header p {
+  margin: 0.75rem 0 0 0;
+  color: #ccc;
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Override the modal styles when used in admin page */
+.admin-page .admin-backdoor-overlay {
+  position: static;
+  background: none;
+  backdrop-filter: none;
+  z-index: auto;
+}
+
+.admin-page .admin-backdoor-modal {
+  background: none;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
+  color: inherit;
+}
+
+.admin-page .admin-backdoor-header {
+  display: none;
+}
+
+.admin-page .admin-backdoor-content {
+  padding: 0;
+}
+
+.admin-page .admin-warning {
+  background: linear-gradient(135deg, #2d1810 0%, #1a0f08 100%);
+  border: 1px solid #ff6b35;
+}
+
+.admin-page .form-group input,
+.admin-page .form-group select,
+.admin-page .form-group textarea {
+  background: #1a1a1a;
+  border: 1px solid #444;
+}
+
+.admin-page .form-group input:focus,
+.admin-page .form-group select:focus,
+.admin-page .form-group textarea:focus {
+  border-color: #ff6b35;
+}
+
+.admin-page .admin-login-button {
+  background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+}
+
+.admin-page .admin-login-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e55a2b 0%, #cc4d21 100%);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.admin-page .cancel-button {
+  background: #333;
+}
+
+.admin-page .cancel-button:hover:not(:disabled) {
+  background: #444;
+}
+
+@media (max-width: 768px) {
+  .admin-page {
+    padding: 1rem;
+  }
+  
+  .admin-page-content {
+    padding: 1.5rem;
+  }
+  
+  .admin-page-header h1 {
+    font-size: 1.5rem;
+  }
+}
