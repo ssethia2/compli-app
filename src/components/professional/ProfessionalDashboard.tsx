@@ -11,6 +11,201 @@ import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
 
+// Service Requests Tab Component
+const ServiceRequestsTab: React.FC = () => {
+  const [serviceRequests, setServiceRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    fetchServiceRequests();
+  }, []);
+
+  const fetchServiceRequests = async () => {
+    try {
+      const result = await client.models.ServiceRequest.list();
+      // Sort by creation date (newest first)
+      const sortedRequests = result.data.sort((a, b) => 
+        new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+      );
+      setServiceRequests(sortedRequests);
+    } catch (error) {
+      console.error('Error fetching service requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateRequestStatus = async (requestId: string, newStatus: string, comments?: string) => {
+    try {
+      await client.models.ServiceRequest.update({
+        id: requestId,
+        status: newStatus as any,
+        updatedAt: new Date().toISOString(),
+        comments: comments || undefined
+      });
+      fetchServiceRequests(); // Refresh the list
+    } catch (error) {
+      console.error('Error updating request status:', error);
+      alert('Error updating request status');
+    }
+  };
+
+  const formatServiceType = (serviceType: string) => {
+    return serviceType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING': return 'status-pending';
+      case 'IN_PROGRESS': return 'status-in-progress';
+      case 'APPROVED': return 'status-completed';
+      case 'REJECTED': return 'status-rejected';
+      case 'COMPLETED': return 'status-completed';
+      default: return 'status-pending';
+    }
+  };
+
+  const showRequestDetails = (request: any) => {
+    setSelectedRequest(request);
+    setShowDetails(true);
+  };
+
+  if (loading) {
+    return <div className="loading">Loading service requests...</div>;
+  }
+
+  return (
+    <>
+      <div className="data-table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Service Type</th>
+              <th>Director ID</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {serviceRequests.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="no-data">No service requests found.</td>
+              </tr>
+            ) : (
+              serviceRequests.map(request => (
+                <tr key={request.id}>
+                  <td>{request.id?.slice(-8) || 'N/A'}</td>
+                  <td>{formatServiceType(request.serviceType)}</td>
+                  <td>{request.directorId}</td>
+                  <td>
+                    <span className={`status-badge ${getStatusColor(request.status)}`}>
+                      {request.status}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`priority-badge priority-${request.priority?.toLowerCase()}`}>
+                      {request.priority}
+                    </span>
+                  </td>
+                  <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '-'}</td>
+                  <td>
+                    <button 
+                      className="action-button"
+                      onClick={() => showRequestDetails(request)}
+                    >
+                      View
+                    </button>
+                    {request.status === 'PENDING' && (
+                      <>
+                        <button 
+                          className="action-button"
+                          onClick={() => updateRequestStatus(request.id, 'IN_PROGRESS')}
+                        >
+                          Start
+                        </button>
+                        <button 
+                          className="action-button"
+                          onClick={() => updateRequestStatus(request.id, 'APPROVED')}
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          className="action-button delete-button"
+                          onClick={() => updateRequestStatus(request.id, 'REJECTED', 'Request rejected by professional')}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {request.status === 'IN_PROGRESS' && (
+                      <button 
+                        className="action-button"
+                        onClick={() => updateRequestStatus(request.id, 'COMPLETED')}
+                      >
+                        Complete
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Request Details Modal */}
+      {showDetails && selectedRequest && (
+        <div className="service-modal-overlay" onClick={() => setShowDetails(false)}>
+          <div className="service-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="service-modal-header">
+              <h2>{formatServiceType(selectedRequest.serviceType)} Request</h2>
+              <button className="close-button" onClick={() => setShowDetails(false)}>×</button>
+            </div>
+            <div className="service-modal-content">
+              <div className="request-details">
+                <h3>Request Information</h3>
+                <div className="detail-row">
+                  <strong>Request ID:</strong> {selectedRequest.id}
+                </div>
+                <div className="detail-row">
+                  <strong>Director ID:</strong> {selectedRequest.directorId}
+                </div>
+                <div className="detail-row">
+                  <strong>Status:</strong> 
+                  <span className={`status-badge ${getStatusColor(selectedRequest.status)}`}>
+                    {selectedRequest.status}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <strong>Priority:</strong> {selectedRequest.priority}
+                </div>
+                <div className="detail-row">
+                  <strong>Created:</strong> {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleString() : 'N/A'}
+                </div>
+                {selectedRequest.comments && (
+                  <div className="detail-row">
+                    <strong>Comments:</strong> {selectedRequest.comments}
+                  </div>
+                )}
+                
+                <h3>Request Data</h3>
+                <div className="request-data">
+                  <pre>{JSON.stringify(JSON.parse(selectedRequest.requestData || '{}'), null, 2)}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 const ProfessionalDashboard: React.FC = () => {
   const { user } = useAuthenticator();
   const [activeTab, setActiveTab] = useState('companies');
@@ -545,18 +740,9 @@ const ProfessionalDashboard: React.FC = () => {
             )}
             
             {activeTab === 'service-requests' && (
-              <div className="service-requests">
-                <p>Service requests functionality coming soon. This will show all pending and completed service requests from directors.</p>
-                <div className="placeholder-content">
-                  <h3>Upcoming Features:</h3>
-                  <ul>
-                    <li>View all director service requests</li>
-                    <li>Process incorporation requests</li>
-                    <li>Handle annual filing requests</li>
-                    <li>Manage board meeting requests</li>
-                    <li>Track request status and progress</li>
-                  </ul>
-                </div>
+              <div>
+                <h2>Service Requests</h2>
+                <ServiceRequestsTab />
               </div>
             )}
           </div>

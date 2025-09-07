@@ -4,6 +4,8 @@ import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
 import NameReservationForm from './NameReservationForm';
+import FileUpload from '../shared/FileUpload';
+import DocumentList from '../shared/DocumentList';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -315,6 +317,12 @@ const DirectorDashboard: React.FC = () => {
           onClick={() => setActiveTab('services')}
         >
           Services
+        </button>
+        <button 
+          className={activeTab === 'documents' ? 'active' : ''} 
+          onClick={() => setActiveTab('documents')}
+        >
+          My Documents
         </button>
       </nav>
       
@@ -816,11 +824,35 @@ const DirectorDashboard: React.FC = () => {
                 </div>
                 
                 <div className="director-appointment-form">
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
-                    console.log('Director appointment request:', directorAppointmentData);
-                    alert('Director appointment request submitted successfully!');
-                    setActiveTab('services');
+                    try {
+                      const result = await client.models.ServiceRequest.create({
+                        directorId: user?.username || '',
+                        serviceType: 'DIRECTOR_APPOINTMENT',
+                        requestData: JSON.stringify(directorAppointmentData),
+                        status: 'PENDING',
+                        priority: 'MEDIUM',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                      });
+                      console.log('Director appointment request created:', result);
+                      alert('Director appointment request submitted successfully!');
+                      // Reset form
+                      setDirectorAppointmentData({
+                        din: '',
+                        email: '',
+                        pan: '',
+                        appointmentDate: '',
+                        category: 'PROMOTER',
+                        designation: 'NON_EXECUTIVE',
+                        authorizedSignatoryDin: ''
+                      });
+                      setActiveTab('services');
+                    } catch (error) {
+                      console.error('Error submitting appointment request:', error);
+                      alert('Error submitting request. Please try again.');
+                    }
                   }}>
                     <div className="form-row">
                       <div className="form-group">
@@ -981,11 +1013,32 @@ const DirectorDashboard: React.FC = () => {
                 </div>
                 
                 <div className="director-resignation-form">
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
-                    console.log('Director resignation request:', directorResignationData);
-                    alert('Director resignation request submitted successfully!');
-                    setActiveTab('services');
+                    try {
+                      const result = await client.models.ServiceRequest.create({
+                        directorId: user?.username || '',
+                        serviceType: 'DIRECTOR_RESIGNATION',
+                        requestData: JSON.stringify(directorResignationData),
+                        status: 'PENDING',
+                        priority: 'HIGH',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                      });
+                      console.log('Director resignation request created:', result);
+                      alert('Director resignation request submitted successfully!');
+                      // Reset form
+                      setDirectorResignationData({
+                        din: '',
+                        resignationDate: '',
+                        reason: '',
+                        authorizedSignatoryDin: ''
+                      });
+                      setActiveTab('services');
+                    } catch (error) {
+                      console.error('Error submitting resignation request:', error);
+                      alert('Error submitting request. Please try again.');
+                    }
                   }}>
                     <div className="form-row">
                       <div className="form-group">
@@ -1087,11 +1140,33 @@ const DirectorDashboard: React.FC = () => {
                 </div>
                 
                 <div className="director-kyc-form">
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
-                    console.log('Director KYC request:', directorKycData);
-                    alert('Director KYC details submitted successfully!');
-                    setActiveTab('services');
+                    try {
+                      const result = await client.models.ServiceRequest.create({
+                        directorId: user?.username || '',
+                        serviceType: 'DIRECTOR_KYC',
+                        requestData: JSON.stringify(directorKycData),
+                        status: 'PENDING',
+                        priority: 'MEDIUM',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                      });
+                      console.log('Director KYC request created:', result);
+                      alert('Director KYC details submitted successfully!');
+                      // Reset form
+                      setDirectorKycData({
+                        din: '',
+                        aadhar: '',
+                        pan: '',
+                        email: '',
+                        mobile: ''
+                      });
+                      setActiveTab('services');
+                    } catch (error) {
+                      console.error('Error submitting KYC request:', error);
+                      alert('Error submitting request. Please try again.');
+                    }
                   }}>
                     <div className="form-row">
                       <div className="form-group">
@@ -1207,6 +1282,42 @@ const DirectorDashboard: React.FC = () => {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'documents' && (
+              <div>
+                <h2>My Documents</h2>
+                <p className="tab-description">
+                  Upload and manage your personal compliance documents. These documents are private to your account.
+                </p>
+                
+                <div className="documents-section">
+                  <div className="upload-section">
+                    <h3>Upload Documents</h3>
+                    <FileUpload
+                      documentType="IDENTITY"
+                      onUploadComplete={() => {
+                        // Refresh document list after upload
+                        window.location.reload();
+                      }}
+                      maxFileSize={15 * 1024 * 1024} // 15MB for director documents
+                      acceptedFileTypes={['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']}
+                      isMultiple={true}
+                    />
+                  </div>
+                  
+                  <div className="documents-list-section">
+                    <DocumentList
+                      showUploader={false}
+                      allowDelete={true}
+                      onDocumentDeleted={() => {
+                        // Refresh after delete
+                        window.location.reload();
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             )}

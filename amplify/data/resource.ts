@@ -28,8 +28,10 @@ const schema = a.schema({
     professionalAssignments: a.hasMany('ProfessionalAssignment', 'professionalId'),
     // For directors - their entity associations  
     directorAssociations: a.hasMany('DirectorAssociation', 'userId'),
-    // Change requests made by this user
-    changeRequests: a.hasMany('ChangeRequest', 'directorId')
+    // Service requests made by this user
+    serviceRequests: a.hasMany('ServiceRequest', 'directorId'),
+    // Documents uploaded by this user
+    uploadedDocuments: a.hasMany('Document', 'uploadedBy')
   }).authorization(
     allow => [
       allow.authenticated().to(['read', 'create', 'update', 'delete'])
@@ -123,25 +125,48 @@ const schema = a.schema({
     ]
   ),
 
-  // Change Request model
-  ChangeRequest: a.model({
+  // Service Request model (replaces ChangeRequest)
+  ServiceRequest: a.model({
     requestId: a.id(),
     directorId: a.string().required(),
-    entityId: a.string().required(),
-    entityType: a.enum(['LLP', 'COMPANY']),
-    changeType: a.enum(['UPDATE_INFO', 'ADD_DIRECTOR', 'REMOVE_DIRECTOR', 'STATUS_CHANGE', 'OTHER']),
-    requestDetails: a.string().required(),
-    status: a.enum(['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']),
+    serviceType: a.enum(['DIRECTOR_APPOINTMENT', 'DIRECTOR_RESIGNATION', 'DIRECTOR_KYC', 'COMPANY_ANNUAL_FILING', 'LLP_ANNUAL_FILING', 'BOARD_RESOLUTION', 'BOARD_MEETING_MINUTES', 'AGM_MINUTES', 'EGM_MINUTES']),
+    requestData: a.string().required(), // JSON string of form data
+    status: a.enum(['PENDING', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'COMPLETED']),
     createdAt: a.datetime(),
     updatedAt: a.datetime(),
     processedBy: a.string(), // Professional who processed it
     comments: a.string(),
+    priority: a.enum(['LOW', 'MEDIUM', 'HIGH']),
     
     // RELATIONSHIPS
-    requestor: a.belongsTo('UserProfile', 'directorId')
+    requestor: a.belongsTo('UserProfile', 'directorId'),
+    documents: a.hasMany('Document', 'serviceRequestId')
   }).authorization(
     allow => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']) // Simplified for now
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
+    ]
+  ),
+
+  // Document model for file management
+  Document: a.model({
+    fileName: a.string().required(),
+    fileKey: a.string().required(), // S3 key
+    fileSize: a.integer(),
+    mimeType: a.string(),
+    uploadedBy: a.string().required(),
+    uploadedAt: a.datetime(),
+    documentType: a.enum(['IDENTITY', 'ADDRESS_PROOF', 'BOARD_RESOLUTION', 'FINANCIAL_STATEMENT', 'COMPLIANCE_CERTIFICATE', 'OTHER']),
+    entityId: a.string(), // Company or LLP ID this document belongs to
+    entityType: a.enum(['COMPANY', 'LLP']),
+    serviceRequestId: a.string(), // If attached to a service request
+    isPublic: a.boolean().default(false),
+    
+    // RELATIONSHIPS
+    uploader: a.belongsTo('UserProfile', 'uploadedBy'),
+    serviceRequest: a.belongsTo('ServiceRequest', 'serviceRequestId')
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
     ]
   )
 });
