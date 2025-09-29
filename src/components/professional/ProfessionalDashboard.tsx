@@ -8,6 +8,8 @@ import LLPForm from './LLPForm';
 import AssociateDirectorForm from './AssociateDirectorForm';
 import ServiceModal from './ServiceModal';
 import PendingTasks from '../shared/PendingTasks';
+import DocumentList from '../shared/DocumentList';
+import FormGenerator from './FormGenerator';
 import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
@@ -18,6 +20,8 @@ const ServiceRequestsTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [directorInfo, setDirectorInfo] = useState<Map<string, any>>(new Map());
+  const [requestDetails, setRequestDetails] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     fetchServiceRequests();
@@ -31,6 +35,36 @@ const ServiceRequestsTab: React.FC = () => {
         new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
       );
       setServiceRequests(sortedRequests);
+      
+      // Load director information for all unique director IDs
+      const uniqueDirectorIds = [...new Set(sortedRequests.map(req => req.directorId))];
+      const directorMap = new Map();
+      
+      for (const directorId of uniqueDirectorIds) {
+        try {
+          const directorResult = await client.models.UserProfile.list({
+            filter: { userId: { eq: directorId } }
+          });
+          
+          if (directorResult.data && directorResult.data.length > 0) {
+            const director = directorResult.data[0];
+            directorMap.set(directorId, {
+              displayName: director.displayName,
+              email: director.email,
+              din: director.din
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not fetch director ${directorId}:`, error);
+          directorMap.set(directorId, {
+            displayName: 'Unknown Director',
+            email: 'N/A',
+            din: 'N/A'
+          });
+        }
+      }
+      
+      setDirectorInfo(directorMap);
     } catch (error) {
       console.error('Error fetching service requests:', error);
     } finally {
@@ -68,9 +102,151 @@ const ServiceRequestsTab: React.FC = () => {
     }
   };
 
-  const showRequestDetails = (request: any) => {
+  const parseRequestData = (requestData: string, serviceType: string, requestId: string) => {
+    try {
+      const data = JSON.parse(requestData || '{}');
+      console.log('Parsing request data:', data, 'Service type:', serviceType);
+      
+      // Get the enhanced details if available
+      const enhancedDetails = requestDetails.get(requestId) || {};
+      
+      switch (serviceType) {
+        case 'DIRECTOR_APPOINTMENT':
+          return {
+            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || data.newDirector?.name || 'Not specified',
+            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || data.newDirector?.din || 'Not specified', 
+            'Director Category': data.directorCategory || data.category || (data.designation ? 'Based on designation' : 'Not specified'),
+            'Designation': data.designation || data.newDesignation || 'Not specified',
+            'Appointment Date': data.appointmentDate || data.effectiveDate ? 
+              new Date(data.appointmentDate || data.effectiveDate).toLocaleDateString() : 'Not specified',
+            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
+            'CIN/LLPIN': enhancedDetails.entityIdentifier || data.cinNumber || data.llpIN || data.selectedEntity?.identifier || 'Not specified',
+            'Previous Designation': data.previousDesignation || 'N/A',
+            'Change Type': data.isNewAppointment ? 'New Appointment' : 'Designation Change',
+            'Reason': data.reason || data.changeReason || 'Not provided'
+          };
+        
+        case 'DIRECTOR_RESIGNATION':
+          return {
+            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || 'Not specified',
+            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || 'Not specified',
+            'Resignation Date': data.resignationDate || data.effectiveDate ? 
+              new Date(data.resignationDate || data.effectiveDate).toLocaleDateString() : 'Not specified',
+            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
+            'CIN/LLPIN': enhancedDetails.entityIdentifier || data.cinNumber || data.llpIN || data.selectedEntity?.identifier || 'Not specified',
+            'Reason': data.reason || data.resignationReason || 'Not provided',
+            'Current Designation': data.currentDesignation || 'Not specified'
+          };
+          
+        case 'DIRECTOR_KYC':
+          return {
+            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || 'Not specified',
+            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || 'Not specified',
+            'KYC Type': data.kycType || data.documentType || 'Not specified',
+            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
+            'Status': data.status || data.kycStatus || 'Pending',
+            'Expiry Date': data.expiryDate ? new Date(data.expiryDate).toLocaleDateString() : 'Not specified'
+          };
+          
+        default:
+          // For other service types, just display key-value pairs nicely
+          const displayData: any = {};
+          Object.keys(data).forEach(key => {
+            // Skip internal fields that aren't user-friendly
+            if (['id', 'createdAt', 'updatedAt', '__typename'].includes(key)) {
+              return;
+            }
+            
+            const value = data[key];
+            let formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+            
+            // Handle nested objects
+            if (typeof value === 'object' && value !== null) {
+              if (value.name) {
+                displayData[formattedKey] = value.name + (value.identifier ? ` (${value.identifier})` : '');
+              } else {
+                displayData[formattedKey] = JSON.stringify(value);
+              }
+            } else if (key.toLowerCase().includes('date') && value) {
+              displayData[formattedKey] = new Date(value).toLocaleDateString();
+            } else {
+              displayData[formattedKey] = value || 'Not specified';
+            }
+          });
+          return displayData;
+      }
+    } catch (error) {
+      console.error('Error parsing request data:', error);
+      return { 'Error': 'Unable to parse request data - please check console for details' };
+    }
+  };
+
+  const fetchRequestDetails = async (request: any) => {
+    try {
+      const data = JSON.parse(request.requestData || '{}');
+      const details: any = {};
+      
+      // Try to get company/LLP details by CIN/LLPIN
+      const cinNumber = data.cinNumber || data.selectedEntity?.identifier;
+      const llpIN = data.llpIN || data.selectedEntity?.identifier;
+      
+      if (cinNumber) {
+        try {
+          const companyResult = await client.models.Company.get({ id: cinNumber });
+          if (companyResult.data) {
+            details.entityName = companyResult.data.companyName;
+            details.entityType = 'Company';
+            details.entityIdentifier = companyResult.data.cinNumber;
+          }
+        } catch (error) {
+          console.warn('Could not fetch company:', error);
+        }
+      } else if (llpIN) {
+        try {
+          const llpResult = await client.models.LLP.get({ id: llpIN });
+          if (llpResult.data) {
+            details.entityName = llpResult.data.llpName;
+            details.entityType = 'LLP';
+            details.entityIdentifier = llpResult.data.llpIN;
+          }
+        } catch (error) {
+          console.warn('Could not fetch LLP:', error);
+        }
+      }
+      
+      // Try to get director details by DIN
+      const din = data.din || data.selectedDirector?.din || data.newDirector?.din;
+      if (din) {
+        try {
+          const directorResult = await client.models.UserProfile.list({
+            filter: { din: { eq: din } }
+          });
+          
+          if (directorResult.data && directorResult.data.length > 0) {
+            const director = directorResult.data[0];
+            details.directorName = director.displayName || director.email;
+            details.directorEmail = director.email;
+            details.directorDIN = director.din;
+          }
+        } catch (error) {
+          console.warn('Could not fetch director by DIN:', error);
+        }
+      }
+      
+      return details;
+    } catch (error) {
+      console.error('Error fetching request details:', error);
+      return {};
+    }
+  };
+
+  const showRequestDetails = async (request: any) => {
     setSelectedRequest(request);
     setShowDetails(true);
+    
+    // Fetch detailed information
+    const details = await fetchRequestDetails(request);
+    setRequestDetails(prev => new Map(prev.set(request.id, details)));
   };
 
   if (loading) {
@@ -83,9 +259,8 @@ const ServiceRequestsTab: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Request ID</th>
               <th>Service Type</th>
-              <th>Director ID</th>
+              <th>Requesting Director</th>
               <th>Status</th>
               <th>Priority</th>
               <th>Created</th>
@@ -95,25 +270,37 @@ const ServiceRequestsTab: React.FC = () => {
           <tbody>
             {serviceRequests.length === 0 ? (
               <tr>
-                <td colSpan={7} className="no-data">No service requests found.</td>
+                <td colSpan={6} className="no-data">No service requests found.</td>
               </tr>
             ) : (
-              serviceRequests.map(request => (
-                <tr key={request.id}>
-                  <td>{request.id?.slice(-8) || 'N/A'}</td>
-                  <td>{formatServiceType(request.serviceType)}</td>
-                  <td>{request.directorId}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusColor(request.status)}`}>
-                      {request.status}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`priority-badge priority-${request.priority?.toLowerCase()}`}>
-                      {request.priority}
-                    </span>
-                  </td>
-                  <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '-'}</td>
+              serviceRequests.map(request => {
+                const requestingDirector = directorInfo.get(request.directorId);
+                return (
+                  <tr key={request.id}>
+                    <td>{formatServiceType(request.serviceType)}</td>
+                    <td>
+                      {requestingDirector ? (
+                        <div>
+                          <div>{requestingDirector.displayName || requestingDirector.email}</div>
+                          <small style={{ color: '#666' }}>
+                            {requestingDirector.din ? `DIN: ${requestingDirector.din}` : requestingDirector.email}
+                          </small>
+                        </div>
+                      ) : (
+                        'Loading...'
+                      )}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${getStatusColor(request.status)}`}>
+                        {request.status}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`priority-badge priority-${request.priority?.toLowerCase()}`}>
+                        {request.priority}
+                      </span>
+                    </td>
+                    <td>{request.createdAt ? new Date(request.createdAt).toLocaleDateString() : '-'}</td>
                   <td>
                     <button 
                       className="action-button"
@@ -151,9 +338,10 @@ const ServiceRequestsTab: React.FC = () => {
                         Complete
                       </button>
                     )}
-                  </td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -171,10 +359,20 @@ const ServiceRequestsTab: React.FC = () => {
               <div className="request-details">
                 <h3>Request Information</h3>
                 <div className="detail-row">
-                  <strong>Request ID:</strong> {selectedRequest.id}
-                </div>
-                <div className="detail-row">
-                  <strong>Director ID:</strong> {selectedRequest.directorId}
+                  <strong>Requesting Director:</strong> 
+                  {(() => {
+                    const requestingDirector = directorInfo.get(selectedRequest.directorId);
+                    return requestingDirector ? (
+                      <span>
+                        {requestingDirector.displayName || requestingDirector.email}
+                        {requestingDirector.din && <small> (DIN: {requestingDirector.din})</small>}
+                        <br />
+                        <small style={{ color: '#666' }}>{requestingDirector.email}</small>
+                      </span>
+                    ) : (
+                      'Loading...'
+                    );
+                  })()}
                 </div>
                 <div className="detail-row">
                   <strong>Status:</strong> 
@@ -194,9 +392,16 @@ const ServiceRequestsTab: React.FC = () => {
                   </div>
                 )}
                 
-                <h3>Request Data</h3>
+                <h3>Request Details</h3>
                 <div className="request-data">
-                  <pre>{JSON.stringify(JSON.parse(selectedRequest.requestData || '{}'), null, 2)}</pre>
+                  {(() => {
+                    const parsedData = parseRequestData(selectedRequest.requestData, selectedRequest.serviceType, selectedRequest.id);
+                    return Object.entries(parsedData).map(([key, value]) => (
+                      <div key={key} className="detail-row">
+                        <strong>{key}:</strong> {String(value)}
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
@@ -215,6 +420,7 @@ const ProfessionalDashboard: React.FC = () => {
   const [associations, setAssociations] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [formGenerationTasks, setFormGenerationTasks] = useState<any[]>([]);
   
   // Service modal state
   const [serviceModal, setServiceModal] = useState<{
@@ -519,6 +725,12 @@ const ProfessionalDashboard: React.FC = () => {
         >
           Pending Tasks
         </button>
+        <button 
+          className={activeTab === 'documents' ? 'active' : ''} 
+          onClick={() => { setActiveTab('documents'); setShowAddForm(false); }}
+        >
+          Documents
+        </button>
       </nav>
       
       <div className="dashboard-content">
@@ -529,9 +741,10 @@ const ProfessionalDashboard: React.FC = () => {
             {activeTab === 'associations' && 'Director Dashboard'}
             {activeTab === 'service-requests' && 'Service Requests'}
             {activeTab === 'pending-tasks' && 'Pending Tasks'}
+            {activeTab === 'documents' && 'Documents & Forms'}
           </h2>
           
-          {activeTab !== 'pending-tasks' && (
+          {activeTab !== 'pending-tasks' && activeTab !== 'documents' && (
             <button 
               className="add-button"
               onClick={() => setShowAddForm(!showAddForm)}
@@ -760,7 +973,49 @@ const ProfessionalDashboard: React.FC = () => {
               <PendingTasks 
                 userId={user?.username || ''}
                 userRole="PROFESSIONALS"
+                onDirectorFormGeneration={(taskData) => {
+                  // Add the task to our form generation tasks
+                  setFormGenerationTasks(prev => [...prev, taskData]);
+                  // Switch to documents tab 
+                  setActiveTab('documents');
+                }}
               />
+            )}
+            
+            {activeTab === 'documents' && (
+              <div>
+                <div style={{ marginBottom: '2rem' }}>
+                  <h3>Form Generation & Document Management</h3>
+                  <p>Generate DIR-2, DIR-8, and MBP-1 forms from collected director information, and manage all compliance documents.</p>
+                </div>
+                
+                {/* Form Generation Tasks */}
+                {formGenerationTasks.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <h4>Pending Form Generation Tasks</h4>
+                    {formGenerationTasks.map((task, index) => (
+                      <FormGenerator
+                        key={index}
+                        directorDIN={task.directorDIN}
+                        directorName={task.directorName}
+                        entityName={task.entityName}
+                        directorInfoDocument={task.directorInfoDocument}
+                        requiredForms={task.requiredForms || ['DIR-2', 'DIR-8', 'MBP-1']}
+                        onFormsGenerated={() => {
+                          // Remove this task from the list
+                          setFormGenerationTasks(prev => prev.filter((_, i) => i !== index));
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                <DocumentList
+                  showUploader={true}
+                  allowDelete={true}
+                  onRefresh={() => {}}
+                />
+              </div>
             )}
           </div>
         )}

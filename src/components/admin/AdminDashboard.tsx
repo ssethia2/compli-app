@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import FileUpload from '../shared/FileUpload';
-import DocumentList from '../shared/DocumentList';
 import './AdminDashboard.css';
 
 const client = generateClient<Schema>();

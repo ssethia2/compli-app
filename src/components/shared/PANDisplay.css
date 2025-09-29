@@ -1,0 +1,163 @@
+.pan-display {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pan-display.with-border {
+  border: 2px solid #e5e7eb;
+}
+
+.pan-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  gap: 0.5rem;
+}
+
+.pan-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pan-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.pan-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+  gap: 0.5rem;
+}
+
+.pan-placeholder-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.pan-document-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pan-pdf-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #374151;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.pan-pdf-icon {
+  font-size: 2rem;
+  color: #ef4444;
+}
+
+.pan-image-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pan-download-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pan-document-preview:hover .pan-download-btn {
+  opacity: 1;
+}
+
+.pan-download-btn:hover {
+  background: rgba(59, 130, 246, 1);
+}
+
+.pan-status {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.pan-status.uploaded {
+  background-color: #10b981;
+}
+
+.pan-status.pending {
+  background-color: #f59e0b;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .pan-download-btn {
+    opacity: 1;
+    position: static;
+    margin-top: 0.5rem;
+  }
+  
+  .pan-pdf-preview,
+  .pan-placeholder {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .pan-pdf-icon,
+  .pan-placeholder-icon {
+    font-size: 1.5rem;
+  }
+}

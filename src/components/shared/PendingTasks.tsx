@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { getUserTasks, completeTask, getUserNotifications, markNotificationAsRead } from '../../services/notificationService';
+import DINEmailAssociationModal from './DINEmailAssociationModal';
 import './PendingTasks.css';
 
 interface PendingTasksProps {
   userId: string;
   userRole: 'DIRECTORS' | 'PROFESSIONALS';
+  onDirectorInfoTask?: (taskData: any) => void;
+  onDirectorFormGeneration?: (taskData: any) => void;
 }
 
-const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole }) => {
+const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole, onDirectorInfoTask, onDirectorFormGeneration }) => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'tasks' | 'notifications'>('tasks');
+  const [showDINModal, setShowDINModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -50,6 +55,75 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole }) => {
       setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleDINAssociationTask = (task: any) => {
+    setSelectedTask(task);
+    setShowDINModal(true);
+  };
+
+  const handleDirectorInfoCompletionTask = (task: any) => {
+    if (onDirectorInfoTask && task.metadata) {
+      try {
+        const metadata = JSON.parse(task.metadata);
+        const taskData = {
+          taskId: task.id,
+          serviceRequestId: metadata.serviceRequestId,
+          appointmentData: metadata.appointmentData
+        };
+        onDirectorInfoTask(taskData);
+      } catch (error) {
+        console.error('Error parsing task metadata:', error);
+        alert('Error loading task data. Please refresh and try again.');
+      }
+    }
+  };
+
+  const handleDirectorFormGenerationTask = (task: any) => {
+    if (onDirectorFormGeneration && task.metadata) {
+      try {
+        const metadata = JSON.parse(task.metadata);
+        const taskData = {
+          taskId: task.id,
+          directorDIN: metadata.directorDIN,
+          directorName: metadata.directorName,
+          entityName: metadata.entityName,
+          directorInfoDocument: metadata.directorInfoDocument,
+          requiredForms: metadata.requiredForms
+        };
+        onDirectorFormGeneration(taskData);
+      } catch (error) {
+        console.error('Error parsing task metadata:', error);
+        alert('Error loading task data. Please refresh and try again.');
+      }
+    }
+  };
+
+  const handleAssociationCreated = async (_association: any) => {
+    // Complete the task when association is created
+    if (selectedTask) {
+      await handleCompleteTask(selectedTask.id);
+    }
+    setShowDINModal(false);
+    setSelectedTask(null);
+  };
+
+  const getDINModalInitialData = () => {
+    if (!selectedTask?.metadata) return {};
+    
+    try {
+      const metadata = JSON.parse(selectedTask.metadata);
+      return {
+        din: metadata.directorDIN,
+        entityId: metadata.entityId || selectedTask.relatedEntityId,
+        entityType: metadata.entityType || selectedTask.relatedEntityType,
+        entityName: metadata.entityName,
+        requestContext: metadata.appointmentData
+      };
+    } catch (error) {
+      console.error('Error parsing task metadata:', error);
+      return {};
     }
   };
 
@@ -181,12 +255,35 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole }) => {
                       </span>
                     </div>
                     <div className="task-actions">
-                      <button
-                        className="complete-task-btn"
-                        onClick={() => handleCompleteTask(task.id)}
-                      >
-                        ✅ Complete
-                      </button>
+                      {task.metadata && task.title.includes('Associate DIN with Email') ? (
+                        <button
+                          className="din-association-btn"
+                          onClick={() => handleDINAssociationTask(task)}
+                        >
+                          🔗 Associate DIN & Email
+                        </button>
+                      ) : task.title.includes('Complete Director Information') ? (
+                        <button
+                          className="director-info-btn"
+                          onClick={() => handleDirectorInfoCompletionTask(task)}
+                        >
+                          📝 Complete Information
+                        </button>
+                      ) : task.title.includes('Generate Director Appointment Forms') ? (
+                        <button
+                          className="form-generation-btn"
+                          onClick={() => handleDirectorFormGenerationTask(task)}
+                        >
+                          📄 Generate Forms
+                        </button>
+                      ) : (
+                        <button
+                          className="complete-task-btn"
+                          onClick={() => handleCompleteTask(task.id)}
+                        >
+                          ✅ Complete
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -265,6 +362,13 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole }) => {
           </div>
         )}
       </div>
+
+      <DINEmailAssociationModal
+        isOpen={showDINModal}
+        onClose={() => setShowDINModal(false)}
+        onAssociationCreated={handleAssociationCreated}
+        initialData={getDINModalInitialData()}
+      />
     </div>
   );
 };

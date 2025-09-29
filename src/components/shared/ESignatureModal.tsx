@@ -97,10 +97,6 @@ const ESignatureModal: React.FC<ESignatureModalProps> = ({
     if (!canvas) return;
     
     const rect = canvas.getBoundingClientRect();
-    const mouseEvent = new MouseEvent('mousedown', {
-      clientX: touch.clientX,
-      clientY: touch.clientY
-    });
     
     setIsDrawing(true);
     const ctx = canvas.getContext('2d');
@@ -160,7 +156,7 @@ const ESignatureModal: React.FC<ESignatureModalProps> = ({
     const fileKey = `public/signatures/${user?.username}/${Date.now()}_${fileName}`;
     
     try {
-      const result = await uploadData({
+      await uploadData({
         key: fileKey,
         data: file,
         options: {

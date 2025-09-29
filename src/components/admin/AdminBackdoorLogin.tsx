@@ -41,7 +41,7 @@ const AdminBackdoorLogin: React.FC<AdminBackdoorLoginProps> = ({
 
     try {
       // Check if admin code is valid
-      const adminProfile = ADMIN_CODES[adminCode as keyof typeof ADMIN_CODES];
+      const adminProfile = ADMIN_CODES[adminCode as unknown as keyof typeof ADMIN_CODES];
       
       if (!adminProfile) {
         setError('Invalid admin access code');

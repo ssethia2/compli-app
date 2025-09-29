@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { uploadData } from 'aws-amplify/storage';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
@@ -72,7 +72,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     
     try {
       // Upload to S3
-      const uploadResult = await uploadData({
+      await uploadData({
         key: fileKey,
         data: file,
         options: {

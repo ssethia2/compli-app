@@ -21,6 +21,7 @@ const schema = a.schema({
     dinStatus: a.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING']),
     dscStatus: a.enum(['ACTIVE', 'EXPIRED', 'REVOKED', 'NOT_AVAILABLE']),
     pan: a.string(),
+    panDocumentUrl: a.string(), // URL to uploaded PAN document
     eSignImageUrl: a.string(), // URL to e-sign image
     
     // RELATIONSHIPS
@@ -33,7 +34,15 @@ const schema = a.schema({
     // Documents uploaded by this user
     uploadedDocuments: a.hasMany('Document', 'uploadedBy'),
     // Asset templates created by admin users
-    createdAssets: a.hasMany('AssetTemplate', 'createdBy')
+    createdAssets: a.hasMany('AssetTemplate', 'createdBy'),
+    // Notifications received by this user
+    notifications: a.hasMany('Notification', 'recipientId'),
+    // Tasks assigned to this user
+    assignedTasks: a.hasMany('Task', 'assignedTo'),
+    // Tasks created by this user
+    createdTasks: a.hasMany('Task', 'assignedBy'),
+    // Pending directors associated by this user (for professionals)
+    pendingDirectors: a.hasMany('PendingDirector', 'associatedBy')
   }).authorization(
     allow => [
       allow.authenticated().to(['read', 'create', 'update', 'delete'])
@@ -191,6 +200,80 @@ const schema = a.schema({
     
     // RELATIONSHIPS
     creator: a.belongsTo('UserProfile', 'createdBy')
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
+    ]
+  ),
+
+  // Notification model for email notifications
+  Notification: a.model({
+    recipientId: a.string().required(),
+    recipientEmail: a.string().required(),
+    recipientRole: a.enum(['DIRECTORS', 'PROFESSIONALS']),
+    notificationType: a.enum(['TASK_ASSIGNMENT', 'SERVICE_REQUEST', 'DOCUMENT_REQUIRED', 'APPROVAL_NEEDED', 'DEADLINE_REMINDER', 'STATUS_UPDATE']),
+    title: a.string().required(),
+    message: a.string().required(),
+    relatedEntityId: a.string(), // ServiceRequest ID, Company ID, etc.
+    relatedEntityType: a.enum(['SERVICE_REQUEST', 'COMPANY', 'LLP', 'DOCUMENT', 'DIRECTOR_ASSOCIATION']),
+    priority: a.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+    status: a.enum(['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED']),
+    scheduledAt: a.datetime(),
+    sentAt: a.datetime(),
+    readAt: a.datetime(),
+    createdAt: a.datetime(),
+    metadata: a.string(), // JSON string for additional data
+    
+    // RELATIONSHIPS
+    recipient: a.belongsTo('UserProfile', 'recipientId')
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
+    ]
+  ),
+
+  // Task model for pending tasks/todos
+  Task: a.model({
+    assignedTo: a.string().required(),
+    assignedBy: a.string(),
+    taskType: a.enum(['DOCUMENT_UPLOAD', 'FORM_COMPLETION', 'APPROVAL_REQUIRED', 'REVIEW_NEEDED', 'SIGNATURE_REQUIRED', 'INFORMATION_UPDATE']),
+    title: a.string().required(),
+    description: a.string(),
+    priority: a.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
+    status: a.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']),
+    dueDate: a.datetime(),
+    relatedEntityId: a.string(),
+    relatedEntityType: a.enum(['SERVICE_REQUEST', 'COMPANY', 'LLP', 'DOCUMENT', 'DIRECTOR_ASSOCIATION']),
+    completedAt: a.datetime(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime(),
+    metadata: a.string(), // JSON for task-specific data
+    
+    // RELATIONSHIPS
+    assignee: a.belongsTo('UserProfile', 'assignedTo'),
+    assigner: a.belongsTo('UserProfile', 'assignedBy')
+  }).authorization(
+    allow => [
+      allow.authenticated().to(['read', 'create', 'update', 'delete'])
+    ]
+  ),
+
+  // Pending Director model for associating DINs with emails before account creation
+  PendingDirector: a.model({
+    din: a.string().required(),
+    email: a.string().required(),
+    directorName: a.string(), // Optional name if known
+    associatedBy: a.string().required(), // Professional who created this association
+    entityId: a.string(), // Company/LLP this director will be associated with
+    entityType: a.enum(['COMPANY', 'LLP']),
+    status: a.enum(['PENDING', 'CLAIMED', 'EXPIRED']),
+    requestContext: a.string(), // JSON string with appointment request details
+    createdAt: a.datetime(),
+    claimedAt: a.datetime(),
+    expiresAt: a.datetime(),
+    
+    // RELATIONSHIPS
+    associatedByUser: a.belongsTo('UserProfile', 'associatedBy')
   }).authorization(
     allow => [
       allow.authenticated().to(['read', 'create', 'update', 'delete'])

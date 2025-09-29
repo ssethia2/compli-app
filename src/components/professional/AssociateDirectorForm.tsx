@@ -36,7 +36,7 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
   const [error, setError] = useState('');
   
   // Function to find or create UserProfile by email
-  const findOrCreateDirectorByEmail = async (email: string): Promise<string> => {
+  const findOrCreateDirectorByEmail = async (email: string, din?: string): Promise<string> => {
     try {
       // First, try to find existing UserProfile by email
       const existingUsers = await client.models.UserProfile.list({
@@ -56,7 +56,9 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
         userId: `director-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`, // Generate unique ID
         email: email.toLowerCase().trim(),
         role: 'DIRECTORS',
-        displayName: email.split('@')[0] // Use email prefix as default display name
+        displayName: email.split('@')[0], // Use email prefix as default display name
+        din: din || undefined,
+        dinStatus: din ? 'ACTIVE' : undefined
       });
       
       if (!newUser.data) {
@@ -151,7 +153,34 @@ const AssociateDirectorForm: React.FC<AssociateDirectorFormProps> = ({ onSuccess
       }
       
       // Find or create director UserProfile
-      const directorUserId = await findOrCreateDirectorByEmail(formData.directorEmail);
+      const directorUserId = await findOrCreateDirectorByEmail(formData.directorEmail, formData.din);
+      
+      // Update UserProfile with DIN if provided
+      if (formData.din) {
+        const existingUser = await client.models.UserProfile.list({
+          filter: { userId: { eq: directorUserId } }
+        });
+        
+        if (existingUser.data.length > 0) {
+          console.log('Updating UserProfile with DIN:', {
+            id: existingUser.data[0].id,
+            currentDIN: existingUser.data[0].din,
+            newDIN: formData.din
+          });
+          
+          const updateResult = await client.models.UserProfile.update({
+            id: existingUser.data[0].id,
+            din: formData.din,
+            dinStatus: 'ACTIVE' // Set default status
+          });
+          
+          console.log('UserProfile update result:', updateResult);
+          
+          // Verify the update worked
+          const verifyResult = await client.models.UserProfile.get({ id: existingUser.data[0].id });
+          console.log('Verified UserProfile after DIN update:', verifyResult.data);
+        }
+      }
       
       // Check if association already exists
       const existingAssociations = await client.models.DirectorAssociation.list({

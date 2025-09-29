@@ -144,7 +144,10 @@
 }
 
 .complete-task-btn,
-.mark-read-btn {
+.mark-read-btn,
+.din-association-btn,
+.director-info-btn,
+.form-generation-btn {
   background: #10b981;
   color: white;
   border: none;
@@ -159,6 +162,24 @@
 .complete-task-btn:hover,
 .mark-read-btn:hover {
   background: #059669;
+}
+
+.din-association-btn,
+.director-info-btn {
+  background: #3b82f6;
+}
+
+.form-generation-btn {
+  background: #f59e0b;
+}
+
+.din-association-btn:hover,
+.director-info-btn:hover {
+  background: #2563eb;
+}
+
+.form-generation-btn:hover {
+  background: #d97706;
 }
 
 .mark-read-btn {
@@ -250,7 +271,10 @@
   }
   
   .complete-task-btn,
-  .mark-read-btn {
+  .mark-read-btn,
+  .din-association-btn,
+  .director-info-btn,
+  .form-generation-btn {
     flex: 1;
     text-align: center;
   }

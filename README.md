@@ -16,6 +16,11 @@ This template equips you with a foundational React application integrated with A
 
 For detailed instructions on deploying your application, refer to the [deployment section](https://docs.amplify.aws/react/start/quickstart/#deploy-a-fullstack-app-to-aws) of our documentation.
 
+## TODO - Future Enhancements
+
+### Low Priority
+- [ ] **Email Invitations for DIN-Email Associations**: Send automated email invitations to directors when professionals create DIN-email associations, notifying them that their account is ready to be claimed on the platform.
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
