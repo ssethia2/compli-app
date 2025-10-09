@@ -9,9 +9,7 @@ import DocumentList from '../shared/DocumentList';
 import ESignatureModal from '../shared/ESignatureModal';
 import SignatureDisplay from '../shared/SignatureDisplay';
 import PendingTasks from '../shared/PendingTasks';
-import PANUploadModal from '../shared/PANUploadModal';
-import PANDisplay from '../shared/PANDisplay';
-import DirectorInfoForm from './DirectorInfoForm';
+import DirectorDocumentUpload from './DirectorDocumentUpload';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -55,7 +53,6 @@ const DirectorDashboard: React.FC = () => {
   // Selective refresh triggers
   const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
   const [showESignModal, setShowESignModal] = useState(false);
-  const [showPANUploadModal, setShowPANUploadModal] = useState(false);
   const [showDirectorInfoForm, setShowDirectorInfoForm] = useState(false);
   const [directorInfoData, setDirectorInfoData] = useState<any>(null);
   const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
@@ -99,40 +96,6 @@ const DirectorDashboard: React.FC = () => {
     alert('E-signature saved successfully!');
   }, [refreshProfile]);
 
-  const handlePANUploaded = useCallback(async (_panUrl: string) => {
-    // Trigger profile refresh to show the new PAN document
-    refreshProfile();
-    
-    // Complete any pending PAN upload tasks
-    try {
-      const pendingTasks = await client.models.Task.list({
-        filter: {
-          and: [
-            { assignedTo: { eq: user?.username } },
-            { taskType: { eq: 'DOCUMENT_UPLOAD' } },
-            { status: { ne: 'COMPLETED' } },
-            { title: { eq: 'Upload PAN Document' } }
-          ]
-        }
-      });
-
-      // Complete all pending PAN upload tasks
-      for (const task of pendingTasks.data) {
-        await client.models.Task.update({
-          id: task.id,
-          status: 'COMPLETED',
-          completedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      console.log('Completed PAN upload tasks:', pendingTasks.data.length);
-    } catch (error) {
-      console.error('Error completing PAN upload tasks:', error);
-    }
-    
-    alert('PAN document uploaded successfully!');
-  }, [refreshProfile, user?.username]);
 
   // Function to update user's DIN
   const updateUserDIN = async (din: string) => {
@@ -190,6 +153,89 @@ const DirectorDashboard: React.FC = () => {
             claimedAt: new Date().toISOString()
           });
 
+          // Create DirectorAssociation if entity information is available
+          if (association.entityId && association.entityType) {
+            try {
+              const appointmentData = association.requestContext ? JSON.parse(association.requestContext) : {};
+
+              // Find the professional assigned to this entity
+              let assignedProfessionalId = null;
+              try {
+                const professionalAssignments = await client.models.ProfessionalAssignment.list({
+                  filter: {
+                    and: [
+                      { entityId: { eq: association.entityId } },
+                      { entityType: { eq: association.entityType } },
+                      { isActive: { eq: true } }
+                    ]
+                  }
+                });
+
+                if (professionalAssignments.data.length > 0) {
+                  assignedProfessionalId = professionalAssignments.data[0].professionalId;
+                  console.log('Found professional for entity:', assignedProfessionalId);
+                }
+              } catch (error) {
+                console.error('Error finding professional assignment:', error);
+              }
+
+              // Create DirectorAssociation (not yet active until appointment is confirmed)
+              await client.models.DirectorAssociation.create({
+                userId: user.username,
+                entityId: association.entityId,
+                entityType: association.entityType as 'COMPANY' | 'LLP',
+                associationType: 'DIRECTOR',
+                din: association.din,
+                appointmentDate: appointmentData.appointmentDate || new Date().toISOString(),
+                isActive: false, // Not active until appointment is confirmed
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+              console.log('Created DirectorAssociation for claimed DIN (pending confirmation)');
+
+              // Associate director to professional if professional exists
+              if (assignedProfessionalId) {
+                try {
+                  await client.models.ProfessionalAssignment.create({
+                    professionalId: assignedProfessionalId,
+                    directorId: user.username,
+                    entityId: association.entityId,
+                    entityType: association.entityType as 'COMPANY' | 'LLP',
+                    isActive: true,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  });
+                  console.log('Associated director to professional:', assignedProfessionalId);
+                } catch (error) {
+                  console.error('Error creating professional-director assignment:', error);
+                }
+              }
+
+              // Create the document upload task
+              await client.models.Task.create({
+                assignedTo: user.username,
+                taskType: 'DOCUMENT_UPLOAD',
+                title: 'Upload Documents for Director Appointment',
+                description: `You have been appointed as a director at ${appointmentData.companyName || 'the company'}. Please upload PAN, Aadhar, and passport (if foreign national) in the My Documents tab, and upload your e-signature on the Director Dashboard tab. Then complete this task. The professional will then download your documents and complete your information form.`,
+                priority: 'HIGH',
+                status: 'PENDING',
+                dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                relatedEntityId: association.entityId,
+                relatedEntityType: association.entityType as 'COMPANY' | 'LLP',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                metadata: JSON.stringify({
+                  appointmentData: appointmentData,
+                  taskType: 'director-document-upload',
+                  din: association.din
+                })
+              });
+              console.log('Created document upload task for new director');
+            } catch (error) {
+              console.error('Error creating DirectorAssociation or Task:', error);
+            }
+          }
+
           console.log('Successfully claimed DIN association:', association.din);
           alert(`Welcome! Your DIN ${association.din} has been automatically added to your profile.`);
           refreshProfile(); // Refresh to show the claimed DIN
@@ -201,89 +247,10 @@ const DirectorDashboard: React.FC = () => {
     }
   };
 
-  // Function to notify professionals when director info is ready for form generation
-  const notifyProfessionalsInfoReady = async (directorInfo: any, infoDocument: any) => {
-    try {
-      // Find professionals assigned to this entity
-      const professionalAssignments = await client.models.ProfessionalAssignment.list({
-        filter: {
-          and: [
-            { entityId: { eq: directorInfo.entityId } },
-            { entityType: { eq: directorInfo.entityType } },
-            { isActive: { eq: true } }
-          ]
-        }
-      });
+  // No longer needed - DirectorInfoForm now handled by professionals
 
-      // Create tasks and notifications for each assigned professional
-      for (const assignment of professionalAssignments.data) {
-        // Get professional's profile for email
-        const professionalProfile = await client.models.UserProfile.list({
-          filter: { userId: { eq: assignment.professionalId } }
-        });
-
-        if (professionalProfile.data.length > 0) {
-          const professional = professionalProfile.data[0];
-
-          // Create task for professional
-          await client.models.Task.create({
-            assignedTo: assignment.professionalId,
-            assignedBy: user?.username,
-            taskType: 'FORM_COMPLETION',
-            title: 'Generate Director Appointment Forms',
-            description: `Director information has been collected for ${directorInfo.fullName} (DIN: ${directorInfo.din}) at ${directorInfo.companyName}. Please generate and prepare DIR-2, DIR-8, and MBP-1 forms for submission to authorities.`,
-            priority: 'HIGH',
-            status: 'PENDING',
-            dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days
-            relatedEntityId: directorInfo.entityId,
-            relatedEntityType: directorInfo.entityType,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            metadata: JSON.stringify({
-              directorDIN: directorInfo.din,
-              directorName: directorInfo.fullName,
-              entityName: directorInfo.companyName,
-              directorInfoDocument: {
-                fileName: infoDocument.fileName,
-                fileKey: infoDocument.fileKey,
-                documentType: infoDocument.documentType
-              },
-              formType: 'director-appointment-preparation',
-              requiredForms: ['DIR-2', 'DIR-8', 'MBP-1']
-            })
-          });
-
-          // Create notification
-          await client.models.Notification.create({
-            recipientId: assignment.professionalId,
-            recipientEmail: professional.email || '',
-            recipientRole: 'PROFESSIONALS',
-            notificationType: 'TASK_ASSIGNMENT',
-            title: 'Director Information Ready - Forms Required',
-            message: `Director ${directorInfo.fullName} has provided all required information for appointment at ${directorInfo.companyName}. Please prepare DIR-2, DIR-8, and MBP-1 forms using the collected information.`,
-            relatedEntityId: directorInfo.entityId,
-            relatedEntityType: directorInfo.entityType,
-            priority: 'HIGH',
-            status: 'PENDING',
-            scheduledAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            metadata: JSON.stringify({
-              directorDIN: directorInfo.din,
-              directorName: directorInfo.fullName,
-              entityName: directorInfo.companyName,
-              requiredForms: ['DIR-2', 'DIR-8', 'MBP-1']
-            })
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error notifying professionals:', error);
-      // Don't throw error here as it's not critical to the main flow
-    }
-  };
-
-  // Function to handle director info task from PendingTasks
-  const handleDirectorInfoTask = (taskData: any) => {
+  // Function to handle director document upload task from PendingTasks
+  const handleDirectorDocumentTask = (taskData: any) => {
     setCurrentDirectorInfoTaskId(taskData.taskId);
     setDirectorInfoData({
       serviceRequestId: taskData.serviceRequestId,
@@ -292,109 +259,8 @@ const DirectorDashboard: React.FC = () => {
     setShowDirectorInfoForm(true);
   };
 
-  // Function to handle director info form submission
-  const handleDirectorInfoSubmit = async (directorInfo: any) => {
-    try {
-      console.log('Submitting director info:', directorInfo);
-      
-      // Store the director information for future PDF generation
-      const directorInfoDoc = await client.models.Document.create({
-        fileName: `DirectorInfo_${directorInfo.din}_${Date.now()}.json`,
-        fileKey: `director-info/${user?.username}/${directorInfo.din}_${Date.now()}.json`,
-        fileSize: JSON.stringify(directorInfo).length,
-        mimeType: 'application/json',
-        uploadedBy: user?.username || '',
-        uploadedAt: new Date().toISOString(),
-        documentType: 'COMPLIANCE_CERTIFICATE',
-        entityId: directorInfo.entityId,
-        entityType: directorInfo.entityType,
-        serviceRequestId: directorInfoData?.serviceRequestId,
-        isPublic: false
-      });
+  // This function is no longer needed as DirectorInfoForm is now handled by professionals
 
-      // Update the service request with in-progress status
-      if (directorInfoData?.serviceRequestId) {
-        await client.models.ServiceRequest.update({
-          id: directorInfoData.serviceRequestId,
-          status: 'IN_PROGRESS',
-          comments: `Director information collected. Ready for form generation (DIR-2, DIR-8, MBP-1). Professional can now prepare the forms.`,
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      // Complete the director info task if it exists
-      if (currentDirectorInfoTaskId) {
-        await client.models.Task.update({
-          id: currentDirectorInfoTaskId,
-          status: 'COMPLETED',
-          completedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      // Notify professionals that director info is ready for form generation
-      await notifyProfessionalsInfoReady(directorInfo, directorInfoDoc.data);
-
-      // Close the form
-      setShowDirectorInfoForm(false);
-      setDirectorInfoData(null);
-      setCurrentDirectorInfoTaskId(null);
-      
-      alert('Director information has been submitted successfully! Professionals have been notified and can now prepare the DIR-2, DIR-8, and MBP-1 forms.');
-      
-      // Refresh data
-      refreshDocuments();
-      
-    } catch (error) {
-      console.error('Error submitting director info:', error);
-      alert('Failed to submit director information. Please try again.');
-    }
-  };
-
-  // Function to create pending task for missing PAN document
-  const createPANUploadTask = async () => {
-    if (!user?.username || !userProfile || userProfile.panDocumentUrl) return;
-
-    try {
-      // Check if PAN upload task already exists
-      const existingTasks = await client.models.Task.list({
-        filter: {
-          and: [
-            { assignedTo: { eq: user.username } },
-            { taskType: { eq: 'DOCUMENT_UPLOAD' } },
-            { status: { ne: 'COMPLETED' } },
-            { title: { eq: 'Upload PAN Document' } }
-          ]
-        }
-      });
-
-      if (existingTasks.data.length > 0) {
-        console.log('PAN upload task already exists for director:', user.username);
-        return;
-      }
-
-      // Create the task
-      const task = await client.models.Task.create({
-        assignedTo: user.username,
-        taskType: 'DOCUMENT_UPLOAD',
-        title: 'Upload PAN Document',
-        description: 'Please upload your PAN card document to complete your profile verification.',
-        priority: 'HIGH',
-        status: 'PENDING',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        metadata: JSON.stringify({
-          documentType: 'PAN',
-          category: 'profile-completion'
-        })
-      });
-
-      console.log('Created PAN upload task for director:', user.username, task);
-    } catch (error) {
-      console.error('Error creating PAN upload task:', error);
-    }
-  };
   
   // Store professional lookup map for associations display
   const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
@@ -658,22 +524,6 @@ const DirectorDashboard: React.FC = () => {
   
 
 
-  // Check for missing PAN document and create task if needed
-  useEffect(() => {
-    let taskCreated = false;
-    
-    const checkPANStatus = async () => {
-      if (userProfile && !userProfile.panDocumentUrl && !taskCreated) {
-        await createPANUploadTask();
-        taskCreated = true;
-      }
-    };
-    
-    // Check PAN status when profile loads
-    if (userProfile) {
-      checkPANStatus();
-    }
-  }, [userProfile]);
 
   // Function to check if director exists by email
 
@@ -911,27 +761,6 @@ const DirectorDashboard: React.FC = () => {
                           showBorder={true}
                           showLabel={false}
                         />
-                      </div>
-                    </div>
-                    <div className="profile-row">
-                      <div className="profile-field full-width">
-                        <label>PAN Document:</label>
-                        <div className="pan-upload-container">
-                          <PANDisplay
-                            key={profileRefreshTrigger} // Force re-render when profile refreshes
-                            panDocumentUrl={userProfile?.panDocumentUrl}
-                            width="250px"
-                            height="120px"
-                            showBorder={true}
-                            showStatus={true}
-                          />
-                          <button 
-                            className="upload-pan-button"
-                            onClick={() => setShowPANUploadModal(true)}
-                          >
-                            {userProfile?.panDocumentUrl ? '📄 Update PAN' : '📄 Upload PAN'}
-                          </button>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1389,13 +1218,20 @@ const DirectorDashboard: React.FC = () => {
                           directorId: user?.username || '',
                           serviceType: 'DIRECTOR_APPOINTMENT',
                           requestData: JSON.stringify({
-                            ...directorAppointmentData,
+                            din: directorAppointmentData.din,
+                            directorDIN: directorAppointmentData.din,
+                            appointmentDate: directorAppointmentData.appointmentDate,
+                            category: directorAppointmentData.category,
+                            designation: directorAppointmentData.designation,
                             directorName: 'New Director (Not on platform)',
                             directorEmail: 'To be provided via association',
-                            directorDIN: directorAppointmentData.din,
                             directorExists: false,
                             companyName: entityInfo.name,
+                            entityName: entityInfo.name,
                             cinNumber: entityInfo.identifier,
+                            entityIdentifier: entityInfo.identifier,
+                            entityId: entityInfo.id,
+                            entityType: entityInfo.type,
                             authorizerDIN: userProfile?.din,
                             authorizerName: userProfile?.displayName || userProfile?.email,
                             authorizerEmail: userProfile?.email
@@ -1426,13 +1262,20 @@ const DirectorDashboard: React.FC = () => {
 
                       // Prepare enhanced request data
                       const requestData = {
-                        ...directorAppointmentData,
+                        din: directorAppointmentData.din,
+                        directorDIN: directorAppointmentData.din,
+                        appointmentDate: directorAppointmentData.appointmentDate,
+                        category: directorAppointmentData.category,
+                        designation: directorAppointmentData.designation,
                         directorName: director?.displayName || director?.email || 'New Director (Not on platform)',
                         directorEmail: director?.email || 'To be provided',
-                        directorDIN: directorAppointmentData.din,
                         directorExists: !!director,
                         companyName: entityInfo.name,
+                        entityName: entityInfo.name,
                         cinNumber: entityInfo.identifier,
+                        entityIdentifier: entityInfo.identifier,
+                        entityId: entityInfo.id,
+                        entityType: entityInfo.type,
                         authorizerDIN: userProfile?.din,
                         authorizerName: userProfile?.displayName || userProfile?.email,
                         authorizerEmail: userProfile?.email
@@ -1450,13 +1293,36 @@ const DirectorDashboard: React.FC = () => {
                       
                       console.log('Director appointment request created:', result);
                       
-                      // Create task for the appointed director to fill out their information
+                      // Find the professional associated with the entity to assign the director to them
+                      let assignedProfessionalId = null;
+                      try {
+                        const professionalAssignments = await client.models.ProfessionalAssignment.list({
+                          filter: {
+                            and: [
+                              { entityId: { eq: entityInfo.id } },
+                              { entityType: { eq: entityInfo.type } },
+                              { isActive: { eq: true } }
+                            ]
+                          }
+                        });
+
+                        if (professionalAssignments.data.length > 0) {
+                          assignedProfessionalId = professionalAssignments.data[0].professionalId;
+                          console.log('Found existing professional assignment:', assignedProfessionalId);
+                        } else {
+                          console.warn('No professional assignment found for this entity');
+                        }
+                      } catch (error) {
+                        console.error('Error finding professional assignment:', error);
+                      }
+                      
+                      // Create task for the appointed director to upload required documents
                       await client.models.Task.create({
                         assignedTo: director.userId,
                         assignedBy: user?.username,
-                        taskType: 'INFORMATION_UPDATE',
-                        title: 'Complete Director Information for Appointment',
-                        description: `You have been appointed as a director at ${entityInfo.name}. Please complete your director information form to enable form generation (DIR-2, DIR-8, MBP-1).`,
+                        taskType: 'DOCUMENT_UPLOAD',
+                        title: 'Upload Documents for Director Appointment',
+                        description: `You have been appointed as a director at ${entityInfo.name}. Please upload PAN, Aadhar, and passport (if foreign national) in the My Documents tab, and upload your e-signature on the Director Dashboard tab. Then complete this task. The professional will then download your documents and complete your information form.`,
                         priority: 'HIGH',
                         status: 'PENDING',
                         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
@@ -1475,11 +1341,50 @@ const DirectorDashboard: React.FC = () => {
                             entityId: entityInfo.id,
                             entityType: directorAppointmentData.selectedEntityType
                           },
-                          taskType: 'director-info-completion',
-                          requiredForms: ['DIR-2', 'DIR-8', 'MBP-1']
+                          taskType: 'director-document-upload',
+                          din: directorAppointmentData.din,
+                          requiredForms: ['DIR-2', 'DIR-8', 'MBP-1'],
+                          assignedProfessionalId: assignedProfessionalId
                         })
                       });
-                      
+
+                      // Create DirectorAssociation to link the new director to the entity
+                      try {
+                        await client.models.DirectorAssociation.create({
+                          userId: director.userId,
+                          entityId: entityInfo.id,
+                          entityType: entityInfo.type as 'COMPANY' | 'LLP',
+                          associationType: 'DIRECTOR',
+                          din: directorAppointmentData.din,
+                          appointmentDate: directorAppointmentData.appointmentDate,
+                          isActive: false, // Not active until appointment is confirmed
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString()
+                        });
+                        console.log('Created DirectorAssociation for new director (pending confirmation)');
+                      } catch (error) {
+                        console.error('Error creating DirectorAssociation:', error);
+                        // Don't fail the entire process if association creation fails
+                      }
+
+                      // Associate director to professional if professional exists
+                      if (assignedProfessionalId) {
+                        try {
+                          await client.models.ProfessionalAssignment.create({
+                            professionalId: assignedProfessionalId,
+                            directorId: director.userId,
+                            entityId: entityInfo.id,
+                            entityType: entityInfo.type as 'COMPANY' | 'LLP',
+                            isActive: true,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                          });
+                          console.log('Associated director to professional:', assignedProfessionalId);
+                        } catch (error) {
+                          console.error('Error creating professional-director assignment:', error);
+                        }
+                      }
+
                       alert(`Director appointment request submitted! ${director.displayName || director.email} has been notified to complete their director information.`);
                       
                       // Reset form
@@ -1919,7 +1824,7 @@ const DirectorDashboard: React.FC = () => {
                 <p className="tab-description">
                   Upload and manage your personal compliance documents. These documents are private to your account.
                 </p>
-                
+
                 <div className="documents-section">
                   <div className="upload-section">
                     <h3>Upload Documents</h3>
@@ -1931,7 +1836,7 @@ const DirectorDashboard: React.FC = () => {
                       isMultiple={true}
                     />
                   </div>
-                  
+
                   <div className="documents-list-section">
                     <DocumentList
                       key={documentsRefreshTrigger} // Force re-render when refresh trigger changes
@@ -1948,7 +1853,7 @@ const DirectorDashboard: React.FC = () => {
               <PendingTasks 
                 userId={user?.username || ''} 
                 userRole="DIRECTORS"
-                onDirectorInfoTask={handleDirectorInfoTask}
+                onDirectorInfoTask={handleDirectorDocumentTask}
               />
             )}
           </>
@@ -1961,17 +1866,15 @@ const DirectorDashboard: React.FC = () => {
         onSignatureSaved={handleSignatureSaved}
       />
       
-      <PANUploadModal
-        isOpen={showPANUploadModal}
-        onClose={() => setShowPANUploadModal(false)}
-        onPANUploaded={handlePANUploaded}
-      />
-
-      <DirectorInfoForm
+      <DirectorDocumentUpload
         isOpen={showDirectorInfoForm}
         onClose={() => setShowDirectorInfoForm(false)}
-        onSubmit={handleDirectorInfoSubmit}
-        serviceRequestId={directorInfoData?.serviceRequestId}
+        onUploadComplete={() => {
+          setShowDirectorInfoForm(false);
+          setDirectorInfoData(null);
+          setCurrentDirectorInfoTaskId('');
+        }}
+        taskId={currentDirectorInfoTaskId || ''}
         appointmentData={directorInfoData}
       />
       

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { uploadData } from 'aws-amplify/storage';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
@@ -21,79 +20,62 @@ const PANUploadModal: React.FC<PANUploadModalProps> = ({
 }) => {
   const { user } = useAuthenticator();
   const [panNumber, setPanNumber] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const handleFileUpload = async (files: File[]) => {
-    if (!files.length || !user?.username) return;
-    
-    const file = files[0];
-    
-    // Validate file type (PDF, JPG, PNG)
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
-      alert('Please upload a valid PAN document (PDF, JPG, or PNG)');
+  const handleFileUpload = async (document: any) => {
+    if (!document || !user?.username) {
+      console.error('Missing document or user information');
       return;
     }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
-      return;
-    }
-    
-    
+
+    setUploading(true);
+
     try {
-      // Generate unique file key
-      const timestamp = Date.now();
-      const fileExtension = file.name.split('.').pop() || 'pdf';
-      const fileKey = `pan-documents/${user.username}/pan-${timestamp}.${fileExtension}`;
-      
-      // Upload to S3
-      console.log('Uploading PAN document to S3...');
-      const result = await uploadData({
-        key: fileKey,
-        data: file,
-        options: {
-          contentType: file.type,
-          metadata: {
-            panNumber: panNumber,
-            uploadedBy: user.username,
-            uploadType: 'pan-document'
-          }
-        }
-      }).result;
-      
-      console.log('PAN document uploaded successfully:', result);
-      
+      console.log('PAN document uploaded to S3:', document);
+      console.log('Updating user profile with fileKey:', document.fileKey);
+
       // Update user profile with PAN document URL
       const userProfiles = await client.models.UserProfile.list({
         filter: { userId: { eq: user.username } }
       });
-      
+
       if (userProfiles.data.length > 0) {
         const profileId = userProfiles.data[0].id;
-        
+
         await client.models.UserProfile.update({
           id: profileId,
-          panDocumentUrl: result.key,
+          panDocumentUrl: document.fileKey,
           pan: panNumber || userProfiles.data[0].pan // Update PAN number if provided
         });
-        
+
         console.log('User profile updated with PAN document');
+      } else {
+        console.error('No user profile found for user:', user.username);
+        alert('User profile not found. Please contact support.');
+        setUploading(false);
+        return;
       }
-      
-      // Call success callback
-      onPANUploaded(result.key);
-      onClose();
-      alert('PAN document uploaded successfully!');
-      
+
+      // Call success callback (this is async but we don't await it)
+      console.log('Calling onPANUploaded callback');
+      onPANUploaded(document.fileKey);
+
+      // Close modal after a short delay to ensure state updates
+      setTimeout(() => {
+        console.log('Closing PAN upload modal');
+        handleClose();
+      }, 100);
+
     } catch (error) {
-      console.error('Error uploading PAN document:', error);
-      alert('Failed to upload PAN document. Please try again.');
+      console.error('Error updating profile with PAN document:', error);
+      alert('Failed to update profile. Please try again.');
+      setUploading(false);
     }
   };
 
   const handleClose = () => {
     setPanNumber('');
+    setUploading(false);
     onClose();
   };
 
@@ -126,12 +108,21 @@ const PANUploadModal: React.FC<PANUploadModalProps> = ({
           <div className="pan-upload-section">
             <h4>Upload PAN Document</h4>
             <p>Please upload a clear image or PDF of your PAN card</p>
-            
+
+            {uploading && (
+              <div style={{ padding: '1rem', textAlign: 'center', color: '#3b82f6' }}>
+                <p>Updating profile...</p>
+              </div>
+            )}
+
             <FileUpload
               documentType="IDENTITY"
               onUploadComplete={handleFileUpload}
               acceptedFileTypes={['.pdf', '.jpg', '.jpeg', '.png']}
               maxFileSize={5 * 1024 * 1024} // 5MB
+              isMultiple={false}
+              defaultDocumentName="PAN Card"
+              hideDocumentNameInput={true}
             />
           </div>
           

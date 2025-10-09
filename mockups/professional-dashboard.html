@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Dashboard - Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .user-info {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .main-content {
+            padding: 2rem 0;
+        }
+        
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #666;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .tab.active {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .tab:hover:not(.active) {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+        
+        .tab-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .service-requests-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .service-requests-table th,
+        .service-requests-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .service-requests-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .service-requests-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-in-progress {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .priority-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .priority-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .priority-medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: all 0.2s ease;
+            margin-right: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+        
+        .btn-outline:hover {
+            background: #f3f4f6;
+        }
+        
+        .pending-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 1.5rem;
+            background: #f8f9ff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .task-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+        
+        .task-info {
+            flex: 1;
+        }
+        
+        .task-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+        
+        .task-desc {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .task-meta {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .documents-section {
+            margin-bottom: 2rem;
+        }
+        
+        .user-group {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .user-group-header {
+            background: #f3f4f6;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-info-header {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .doc-count {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .document-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+        }
+        
+        .document-item:last-child {
+            border-bottom: none;
+        }
+        
+        .document-item:hover {
+            background: #f9fafb;
+        }
+        
+        .doc-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+        
+        .doc-info {
+            flex: 1;
+        }
+        
+        .doc-name {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .doc-meta {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .original-filename {
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-style: italic;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #2563eb;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .director-form-preview {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-field-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-field label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.25rem;
+        }
+        
+        .form-field input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Professional Dashboard</h1>
+            <div class="user-info">
+                Professional Portal • Sarah Wilson • CA, CS • sarah.wilson@example.com
+            </div>
+        </div>
+    </div>
+    
+    <div class="container main-content">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">8</div>
+                <div class="stat-label">Active Service Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">15</div>
+                <div class="stat-label">Pending Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">142</div>
+                <div class="stat-label">Documents Processed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">12</div>
+                <div class="stat-label">Active Clients</div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('service-requests')">🔧 Service Requests (8)</button>
+            <button class="tab" onclick="showTab('pending-tasks')">📋 Pending Tasks (15)</button>
+            <button class="tab" onclick="showTab('documents')">📁 Documents & Forms</button>
+            <button class="tab" onclick="showTab('clients')">👥 Client Management</button>
+        </div>
+        
+        <div id="service-requests" class="tab-content">
+            <h2>Service Requests</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Manage client service requests and appointments</p>
+            
+            <table class="service-requests-table">
+                <thead>
+                    <tr>
+                        <th>Service Type</th>
+                        <th>Requesting Director</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Director Appointment</td>
+                        <td>
+                            <div>
+                                <div>John Doe</div>
+                                <small style="color: #666;">DIN: 12345678</small>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-pending">Pending</span></td>
+                        <td><span class="priority-badge priority-high">High</span></td>
+                        <td>Jan 12, 2024</td>
+                        <td>
+                            <button class="btn btn-outline">View</button>
+                            <button class="btn btn-primary">Start</button>
+                            <button class="btn btn-success">Approve</button>
+                            <button class="btn btn-danger">Reject</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Director Appointment</td>
+                        <td>
+                            <div>
+                                <div>Jane Smith</div>
+                                <small style="color: #666;">DIN: 87654321</small>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-in-progress">In Progress</span></td>
+                        <td><span class="priority-badge priority-high">High</span></td>
+                        <td>Jan 10, 2024</td>
+                        <td>
+                            <button class="btn btn-outline">View</button>
+                            <button class="btn btn-primary">📝 Complete Director Form</button>
+                            <button class="btn btn-success">Complete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Director KYC</td>
+                        <td>
+                            <div>
+                                <div>Michael Johnson</div>
+                                <small style="color: #666;">DIN: 11223344</small>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-completed">Completed</span></td>
+                        <td><span class="priority-badge priority-medium">Medium</span></td>
+                        <td>Jan 8, 2024</td>
+                        <td>
+                            <button class="btn btn-outline">View</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="pending-tasks" class="tab-content" style="display: none;">
+            <h2>Pending Tasks</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Tasks requiring your immediate attention</p>
+            
+            <div class="pending-tasks">
+                <div class="task-item">
+                    <div class="task-icon">📋</div>
+                    <div class="task-info">
+                        <div class="task-title">Complete Director Appointment Request</div>
+                        <div class="task-desc">New director appointment service request requires your attention. Please review in Service Requests tab.</div>
+                        <div class="task-meta">Due: Tomorrow • High Priority</div>
+                    </div>
+                    <div class="priority-badge priority-high">HIGH</div>
+                    <button class="btn btn-primary">✅ Complete Task</button>
+                </div>
+                
+                <div class="task-item">
+                    <div class="task-icon">📄</div>
+                    <div class="task-info">
+                        <div class="task-title">Generate Director Appointment Forms</div>
+                        <div class="task-desc">Generate DIR-2, DIR-8, and MBP-1 forms for John Doe (DIN: 12345678) appointment at Acme Technologies Pvt Ltd.</div>
+                        <div class="task-meta">Due: In 5 days • High Priority</div>
+                    </div>
+                    <div class="priority-badge priority-high">HIGH</div>
+                    <button class="btn btn-primary">📄 Generate Forms</button>
+                </div>
+                
+                <div class="task-item">
+                    <div class="task-icon">🔗</div>
+                    <div class="task-info">
+                        <div class="task-title">Associate DIN with Email</div>
+                        <div class="task-desc">Associate DIN 98765432 with email address for new director registration.</div>
+                        <div class="task-meta">Due: In 3 days • Medium Priority</div>
+                    </div>
+                    <div class="priority-badge priority-medium">MEDIUM</div>
+                    <button class="btn btn-primary">🔗 Associate DIN & Email</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="documents" class="tab-content" style="display: none;">
+            <h2>Documents & Forms</h2>
+            <p style="color: #666; margin-bottom: 2rem;">View and manage client documents grouped by user</p>
+            
+            <div class="documents-section">
+                <div class="user-group">
+                    <div class="user-group-header">
+                        <div class="user-info-header">John Doe • john.doe@example.com • DIN: 12345678</div>
+                        <div class="doc-count">(3 documents)</div>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="doc-icon">📄</div>
+                        <div class="doc-info">
+                            <div class="doc-name">PAN Card - John Doe</div>
+                            <div class="original-filename">File: PANCARD_JOHNDOE_scan.pdf</div>
+                            <div class="doc-meta">Identity • 2.3 MB • Jan 10, 2024</div>
+                        </div>
+                        <button class="btn btn-outline">⬇️ Download</button>
+                        <button class="btn btn-outline">🗑️ Delete</button>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="doc-icon">📄</div>
+                        <div class="doc-info">
+                            <div class="doc-name">Aadhar Card - John Doe</div>
+                            <div class="original-filename">File: aadhaar_front_back.pdf</div>
+                            <div class="doc-meta">Identity • 1.8 MB • Jan 10, 2024</div>
+                        </div>
+                        <button class="btn btn-outline">⬇️ Download</button>
+                        <button class="btn btn-outline">🗑️ Delete</button>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="doc-icon">📊</div>
+                        <div class="doc-info">
+                            <div class="doc-name">Director Information - John Doe</div>
+                            <div class="original-filename">File: DirectorInfo_12345678_1705999378288.json</div>
+                            <div class="doc-meta">Compliance Certificate • 12 KB • Jan 12, 2024</div>
+                        </div>
+                        <button class="btn btn-outline">⬇️ Download</button>
+                    </div>
+                </div>
+                
+                <div class="user-group">
+                    <div class="user-group-header">
+                        <div class="user-info-header">Jane Smith • jane.smith@example.com • DIN: 87654321</div>
+                        <div class="doc-count">(5 documents)</div>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="doc-icon">📄</div>
+                        <div class="doc-info">
+                            <div class="doc-name">PAN Card - Jane Smith</div>
+                            <div class="original-filename">File: jane_pan_document.pdf</div>
+                            <div class="doc-meta">Identity • 1.9 MB • Jan 8, 2024</div>
+                        </div>
+                        <button class="btn btn-outline">⬇️ Download</button>
+                        <button class="btn btn-outline">🗑️ Delete</button>
+                    </div>
+                    
+                    <div class="document-item">
+                        <div class="doc-icon">📋</div>
+                        <div class="doc-info">
+                            <div class="doc-name">DIR-2 Form - Jane Smith</div>
+                            <div class="original-filename">File: DIR-2_87654321_1705890123456.txt</div>
+                            <div class="doc-meta">Compliance Certificate • 8 KB • Jan 11, 2024</div>
+                        </div>
+                        <button class="btn btn-outline">⬇️ Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="clients" class="tab-content" style="display: none;">
+            <h2>Client Management</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Manage your assigned clients and entities</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div style="background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #059669;">
+                    <h3 style="color: #059669; margin-bottom: 1rem;">🏢 Acme Technologies Pvt Ltd</h3>
+                    <div style="color: #666; font-size: 0.9rem; line-height: 1.6;">
+                        <div><strong>CIN:</strong> U72900MH2020PTC123456</div>
+                        <div><strong>Type:</strong> Private Limited Company</div>
+                        <div><strong>Directors:</strong> 3 Active</div>
+                        <div><strong>Status:</strong> <span style="color: #059669;">Active</span></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 1rem;">Manage Entity</button>
+                </div>
+                
+                <div style="background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #2563eb;">
+                    <h3 style="color: #2563eb; margin-bottom: 1rem;">🤝 Digital Innovations LLP</h3>
+                    <div style="color: #666; font-size: 0.9rem; line-height: 1.6;">
+                        <div><strong>LLPIN:</strong> AAP-1234</div>
+                        <div><strong>Type:</strong> Limited Liability Partnership</div>
+                        <div><strong>Partners:</strong> 4 Active</div>
+                        <div><strong>Status:</strong> <span style="color: #059669;">Active</span></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 1rem;">Manage Entity</button>
+                </div>
+                
+                <div style="background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #d97706;">
+                    <h3 style="color: #d97706; margin-bottom: 1rem;">🌱 Green Energy Solutions</h3>
+                    <div style="color: #666; font-size: 0.9rem; line-height: 1.6;">
+                        <div><strong>CIN:</strong> U40109MH2021PTC234567</div>
+                        <div><strong>Type:</strong> Private Limited Company</div>
+                        <div><strong>Directors:</strong> 2 Active</div>
+                        <div><strong>Status:</strong> <span style="color: #d97706;">Pending Setup</span></div>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 1rem;">Manage Entity</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

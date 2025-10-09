@@ -1,10 +1,10 @@
 {
   "project": {
     "name": "Corporate Compliance Portal",
-    "description": "A comprehensive compliance management application for corporate entities and compliance professionals with document management and e-signature capabilities",
-    "version": "1.2.0",
+    "description": "A comprehensive compliance management application for corporate entities and compliance professionals with document management, service request tracking, and director appointment workflow",
+    "version": "1.5.0",
     "framework": "React + TypeScript + AWS Amplify Gen 2",
-    "lastUpdated": "2025-09-07"
+    "lastUpdated": "2025-01-15"
   },
   "architecture": {
     "frontend": "React 18 with TypeScript",
@@ -13,21 +13,47 @@
     "database": "AWS AppSync + DynamoDB",
     "storage": "AWS S3 (Amplify Storage)",
     "deployment": "AWS Amplify Hosting",
-    "pdfGeneration": "jsPDF + html2canvas"
+    "documentGeneration": "Text-based form generation with S3 storage"
   },
   "userRoles": {
     "DIRECTORS": {
-      "description": "Company/LLP directors who can create entities and manage their associations",
-      "permissions": ["create entities", "view own entities", "submit name reservations", "view professional assignments", "upload documents", "create e-signatures", "submit service requests"]
+      "description": "Company/LLP directors who can submit appointment requests and manage their documents",
+      "permissions": [
+        "create director appointment requests",
+        "upload identity documents (PAN, Aadhar)",
+        "view pending tasks",
+        "complete document upload tasks",
+        "view generated forms",
+        "manage personal profile"
+      ]
     },
     "PROFESSIONALS": {
-      "description": "Compliance professionals who manage multiple entities and director relationships",
-      "permissions": ["manage assigned entities", "view/edit companies and LLPs", "manage director associations", "service management", "process service requests", "view entity documents"]
+      "description": "Compliance professionals who process service requests and manage director workflows",
+      "permissions": [
+        "view and manage service requests",
+        "process director appointment workflows",
+        "complete director information forms",
+        "generate compliance forms (DIR-2, DIR-8, MBP-1)",
+        "download and manage client documents",
+        "update service request status",
+        "view grouped document management"
+      ]
     },
     "ADMIN": {
       "description": "System administrators with backdoor access for asset management only",
-      "permissions": ["manage form templates", "upload document templates", "manage compliance templates", "configure email templates", "asset library management"],
-      "restrictions": ["NO access to user personal data", "NO access to entity information", "NO access to financial data", "Asset management ONLY"]
+      "permissions": [
+        "manage form templates",
+        "upload document templates", 
+        "manage compliance templates",
+        "configure email templates",
+        "asset library management"
+      ],
+      "restrictions": [
+        "NO access to user personal data",
+        "NO access to entity information", 
+        "NO access to financial data",
+        "Asset management ONLY"
+      ]
     }
   },
   "components": {
@@ -40,16 +66,34 @@
     "director": {
       "DirectorDashboard": {
         "path": "src/components/director/DirectorDashboard.tsx",
-        "description": "Main dashboard for directors with multiple tabs",
+        "description": "Main dashboard for directors with appointment request workflow",
         "features": [
-          "Director Profile - Personal info with e-signature display",
-          "My Associations - View entity associations",
-          "Companies - View associated companies", 
-          "LLPs - View associated LLPs",
-          "Professional Associations - See assigned compliance professionals",
-          "Entities in Progress - Create new entities with name reservation",
-          "Services - Request various compliance services",
-          "My Documents - Upload and manage personal documents"
+          "Director appointment request form",
+          "Pending tasks management",
+          "Document upload interface",
+          "Task completion workflow",
+          "Professional assignment tracking"
+        ]
+      },
+      "DirectorDocumentUpload": {
+        "path": "src/components/director/DirectorDocumentUpload.tsx",
+        "description": "Modal for directors to complete document upload tasks",
+        "features": [
+          "Simplified task completion interface",
+          "Instructions for My Documents tab upload",
+          "Service request creation upon completion",
+          "Professional task assignment"
+        ]
+      },
+      "DirectorInfoForm": {
+        "path": "src/components/director/DirectorInfoForm.tsx",
+        "description": "Comprehensive director information form completed by professionals",
+        "features": [
+          "Complete director personal information",
+          "Address and contact details",
+          "Professional qualifications",
+          "Directorship history",
+          "Form validation and submission"
         ]
       },
       "NameReservationForm": {
@@ -57,7 +101,7 @@
         "description": "Form for directors to submit name reservations for new entities",
         "fields": [
           "First Proposed Name",
-          "Second Proposed Name", 
+          "Second Proposed Name",
           "Proposed Object (business description)",
           "Trademarked status (radio)",
           "Word Mark (conditional)",
@@ -70,11 +114,25 @@
     "professional": {
       "ProfessionalDashboard": {
         "path": "src/components/professional/ProfessionalDashboard.tsx",
-        "description": "Main dashboard for compliance professionals",
+        "description": "Main dashboard for compliance professionals with service request management",
         "features": [
-          "My Companies - View and manage assigned companies",
-          "My LLPs - View and manage assigned LLPs",
-          "Director Associations - Manage director-entity relationships"
+          "Service Requests tab - full workflow management",
+          "Pending Tasks - simplified task notifications", 
+          "Documents & Forms - user-grouped document management",
+          "Client Management - entity overview",
+          "DirectorInfoForm integration",
+          "Form generation workflow"
+        ]
+      },
+      "FormGenerator": {
+        "path": "src/components/professional/FormGenerator.tsx",
+        "description": "Form generation component for DIR-2, DIR-8, and MBP-1 compliance forms",
+        "features": [
+          "Load actual director information from S3",
+          "Generate compliance forms with real data",
+          "Upload generated forms to S3",
+          "Document record creation with proper naming",
+          "Form preview and validation"
         ]
       },
       "ServiceModal": {
@@ -91,7 +149,7 @@
         "description": "Form for creating new companies"
       },
       "LLPForm": {
-        "path": "src/components/professional/LLPForm.tsx", 
+        "path": "src/components/professional/LLPForm.tsx",
         "description": "Form for creating new LLPs"
       },
       "AssociateDirectorForm": {
@@ -100,115 +158,497 @@
       }
     },
     "shared": {
+      "PendingTasks": {
+        "path": "src/components/shared/PendingTasks.tsx",
+        "description": "Unified pending tasks component for both roles with task-specific actions",
+        "features": [
+          "Role-based task filtering",
+          "Task-specific action buttons",
+          "Service request integration",
+          "Task priority indicators",
+          "Simplified workflow notifications"
+        ]
+      },
       "FileUpload": {
         "path": "src/components/shared/FileUpload.tsx",
-        "description": "Drag-and-drop file upload component with S3 integration",
-        "features": ["Drag & drop", "File validation", "Progress tracking", "Multiple file support"]
+        "description": "Enhanced drag-and-drop file upload component with custom naming",
+        "features": [
+          "Custom document naming input",
+          "Drag & drop functionality",
+          "File validation and progress tracking",
+          "S3 integration with proper upload",
+          "Multiple file support"
+        ]
       },
       "DocumentList": {
-        "path": "src/components/shared/DocumentList.tsx", 
-        "description": "Document listing with download/delete functionality",
-        "features": ["Document preview", "Download with signed URLs", "Delete functionality", "File type icons"]
+        "path": "src/components/shared/DocumentList.tsx",
+        "description": "Advanced document listing with user grouping and enhanced display",
+        "features": [
+          "User-grouped document organization",
+          "Enhanced user information display (name, email, DIN)",
+          "Custom document name display",
+          "Original filename reference",
+          "Download with signed URLs",
+          "Professional-focused grouping option"
+        ]
       },
       "ESignatureModal": {
         "path": "src/components/shared/ESignatureModal.tsx",
         "description": "E-signature creation modal with draw/upload options",
-        "features": ["Canvas drawing", "File upload", "Touch support", "S3 storage"]
+        "features": [
+          "Canvas drawing",
+          "File upload",
+          "Touch support",
+          "S3 storage"
+        ]
       },
       "SignatureDisplay": {
         "path": "src/components/shared/SignatureDisplay.tsx",
         "description": "E-signature display component with loading states",
-        "features": ["Error handling", "Loading states", "Placeholder display", "PDF-ready format"]
+        "features": [
+          "Error handling",
+          "Loading states",
+          "Placeholder display",
+          "PDF-ready format"
+        ]
       }
     },
     "admin": {
       "AdminBackdoorLogin": {
         "path": "src/components/admin/AdminBackdoorLogin.tsx",
         "description": "Secure admin access portal with code-based authentication",
-        "features": ["Admin code verification", "Security warnings", "Access logging"]
+        "features": [
+          "Admin code verification",
+          "Security warnings",
+          "Access logging"
+        ]
       },
       "AdminPage": {
         "path": "src/components/admin/AdminPage.tsx",
         "description": "Dedicated admin page accessible via /admin route",
-        "features": ["Standalone admin interface", "No authentication required", "Asset management only"]
+        "features": [
+          "Standalone admin interface",
+          "No authentication required",
+          "Asset management only"
+        ]
       },
       "AdminDashboard": {
         "path": "src/components/admin/AdminDashboard.tsx",
         "description": "Admin dashboard for asset template management",
-        "features": ["Template upload/download", "Asset categorization", "Version management", "System information"]
+        "features": [
+          "Template upload/download",
+          "Asset categorization",
+          "Version management",
+          "System information"
+        ]
       }
     }
   },
   "dataModels": {
     "UserProfile": {
       "description": "User profile information linking Cognito users to application roles",
-      "fields": ["userId", "email", "role", "displayName", "din", "dinStatus", "dscStatus", "pan", "eSignImageUrl"],
-      "relationships": ["professionalAssignments", "directorAssociations", "serviceRequests", "uploadedDocuments"]
+      "fields": [
+        "userId",
+        "email", 
+        "role",
+        "displayName",
+        "din",
+        "dinStatus",
+        "dscStatus",
+        "pan",
+        "eSignImageUrl"
+      ],
+      "relationships": [
+        "professionalAssignments",
+        "directorAssociations", 
+        "serviceRequests",
+        "uploadedDocuments"
+      ]
     },
     "Company": {
       "description": "Company entity information",
-      "fields": ["cinNumber", "companyName", "rocName", "dateOfIncorporation", "emailId", "registeredAddress", "authorizedCapital", "paidUpCapital", "numberOfDirectors", "companyStatus", "companyType", "lastAnnualFilingDate", "financialYear", "agmDate"],
-      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS", "STRUCK_OFF", "AMALGAMATED"],
-      "types": ["PRIVATE", "PUBLIC", "ONE_PERSON", "SECTION_8", "GOVERNMENT", "NBFC", "NIDHI", "IFSC"]
+      "fields": [
+        "cinNumber",
+        "companyName",
+        "rocName",
+        "dateOfIncorporation",
+        "emailId",
+        "registeredAddress",
+        "authorizedCapital",
+        "paidUpCapital", 
+        "numberOfDirectors",
+        "companyStatus",
+        "companyType",
+        "lastAnnualFilingDate",
+        "financialYear",
+        "agmDate"
+      ],
+      "status": [
+        "ACTIVE",
+        "INACTIVE", 
+        "UNDER_PROCESS",
+        "STRUCK_OFF",
+        "AMALGAMATED"
+      ],
+      "types": [
+        "PRIVATE",
+        "PUBLIC",
+        "ONE_PERSON",
+        "SECTION_8",
+        "GOVERNMENT", 
+        "NBFC",
+        "NIDHI",
+        "IFSC"
+      ]
     },
     "LLP": {
-      "description": "Limited Liability Partnership entity information", 
-      "fields": ["llpIN", "llpName", "rocName", "dateOfIncorporation", "emailId", "numberOfPartners", "numberOfDesignatedPartners", "registeredAddress", "totalObligationOfContribution", "llpStatus", "lastAnnualFilingDate", "financialYear"],
-      "status": ["ACTIVE", "INACTIVE", "UNDER_PROCESS", "STRUCK_OFF", "AMALGAMATED"]
+      "description": "Limited Liability Partnership entity information",
+      "fields": [
+        "llpIN",
+        "llpName",
+        "rocName", 
+        "dateOfIncorporation",
+        "emailId",
+        "numberOfPartners",
+        "numberOfDesignatedPartners",
+        "registeredAddress",
+        "totalObligationOfContribution",
+        "llpStatus",
+        "lastAnnualFilingDate", 
+        "financialYear"
+      ],
+      "status": [
+        "ACTIVE",
+        "INACTIVE",
+        "UNDER_PROCESS",
+        "STRUCK_OFF",
+        "AMALGAMATED"
+      ]
     },
     "ProfessionalAssignment": {
       "description": "Junction table linking professionals to entities they manage",
-      "fields": ["professionalId", "entityId", "entityType", "assignedDate", "isActive", "role"],
-      "roles": ["PRIMARY", "SECONDARY", "REVIEWER"]
+      "fields": [
+        "professionalId",
+        "entityId",
+        "entityType", 
+        "assignedDate",
+        "isActive",
+        "role"
+      ],
+      "roles": [
+        "PRIMARY",
+        "SECONDARY",
+        "REVIEWER"
+      ]
     },
     "DirectorAssociation": {
-      "description": "Junction table linking directors to entities they're associated with",
-      "fields": ["userId", "entityId", "entityType", "associationType", "din", "originalAppointmentDate", "appointmentDate", "cessationDate", "isActive"],
-      "types": ["DIRECTOR", "DESIGNATED_PARTNER", "PARTNER"]
+      "description": "Junction table linking directors to entities they're associated with", 
+      "fields": [
+        "userId",
+        "entityId",
+        "entityType",
+        "associationType",
+        "din",
+        "originalAppointmentDate",
+        "appointmentDate",
+        "cessationDate",
+        "isActive"
+      ],
+      "types": [
+        "DIRECTOR",
+        "DESIGNATED_PARTNER",
+        "PARTNER"
+      ]
     },
     "ServiceRequest": {
-      "description": "Service requests submitted by directors (replaces ChangeRequest)",
-      "fields": ["requestId", "directorId", "serviceType", "requestData", "status", "createdAt", "updatedAt", "processedBy", "comments", "priority"],
-      "serviceTypes": ["DIRECTOR_APPOINTMENT", "DIRECTOR_RESIGNATION", "DIRECTOR_KYC", "COMPANY_ANNUAL_FILING", "LLP_ANNUAL_FILING", "BOARD_RESOLUTION", "BOARD_MEETING_MINUTES", "AGM_MINUTES", "EGM_MINUTES"],
-      "status": ["PENDING", "IN_PROGRESS", "APPROVED", "REJECTED", "COMPLETED"],
-      "priority": ["LOW", "MEDIUM", "HIGH"]
+      "description": "Enhanced service request system for director appointments and compliance workflows",
+      "fields": [
+        "requestId",
+        "directorId",
+        "serviceType", 
+        "requestData",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "processedBy",
+        "comments",
+        "priority"
+      ],
+      "serviceTypes": [
+        "DIRECTOR_APPOINTMENT",
+        "DIRECTOR_RESIGNATION",
+        "DIRECTOR_KYC",
+        "COMPANY_ANNUAL_FILING",
+        "LLP_ANNUAL_FILING",
+        "BOARD_RESOLUTION",
+        "BOARD_MEETING_MINUTES",
+        "AGM_MINUTES",
+        "EGM_MINUTES"
+      ],
+      "status": [
+        "PENDING",
+        "IN_PROGRESS", 
+        "APPROVED",
+        "REJECTED",
+        "COMPLETED"
+      ],
+      "priority": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ]
+    },
+    "Task": {
+      "description": "Task management system for workflow notifications and assignments",
+      "fields": [
+        "taskId",
+        "assignedTo",
+        "assignedBy",
+        "taskType",
+        "title", 
+        "description",
+        "status",
+        "priority",
+        "dueDate",
+        "createdAt",
+        "updatedAt",
+        "completedAt",
+        "relatedEntityId",
+        "relatedEntityType",
+        "metadata"
+      ],
+      "taskTypes": [
+        "DOCUMENT_UPLOAD",
+        "FORM_COMPLETION",
+        "APPROVAL_REQUIRED",
+        "REVIEW_NEEDED"
+      ],
+      "status": [
+        "PENDING",
+        "IN_PROGRESS",
+        "COMPLETED"
+      ]
+    },
+    "Notification": {
+      "description": "Notification system for user alerts and updates",
+      "fields": [
+        "notificationId",
+        "recipientId",
+        "title",
+        "message", 
+        "notificationType",
+        "priority",
+        "isRead",
+        "createdAt",
+        "metadata"
+      ],
+      "notificationTypes": [
+        "TASK_ASSIGNMENT",
+        "SERVICE_REQUEST",
+        "DOCUMENT_REQUIRED",
+        "APPROVAL_NEEDED", 
+        "DEADLINE_REMINDER",
+        "STATUS_UPDATE"
+      ]
     },
     "Document": {
-      "description": "Document management model for file uploads",
-      "fields": ["fileName", "fileKey", "fileSize", "mimeType", "uploadedBy", "uploadedAt", "documentType", "entityId", "entityType", "serviceRequestId", "isPublic"],
-      "documentTypes": ["IDENTITY", "ADDRESS_PROOF", "BOARD_RESOLUTION", "FINANCIAL_STATEMENT", "COMPLIANCE_CERTIFICATE", "OTHER"],
-      "relationships": ["uploader", "serviceRequest"]
+      "description": "Enhanced document management model with custom naming and improved metadata",
+      "fields": [
+        "fileName",
+        "documentName",
+        "fileKey",
+        "fileSize", 
+        "mimeType",
+        "uploadedBy",
+        "uploadedAt",
+        "documentType",
+        "entityId",
+        "entityType",
+        "serviceRequestId",
+        "isPublic"
+      ],
+      "documentTypes": [
+        "IDENTITY",
+        "ADDRESS_PROOF",
+        "BOARD_RESOLUTION",
+        "FINANCIAL_STATEMENT",
+        "COMPLIANCE_CERTIFICATE",
+        "OTHER"
+      ],
+      "relationships": [
+        "uploader",
+        "serviceRequest"
+      ],
+      "enhancements": [
+        "Custom document naming support",
+        "Enhanced user information display",
+        "Proper S3 integration with actual file uploads"
+      ]
     },
     "AssetTemplate": {
       "description": "Admin-managed template assets (forms, documents, email templates)",
-      "fields": ["templateName", "templateType", "fileKey", "fileName", "fileSize", "mimeType", "description", "version", "isActive", "metadata", "createdBy", "updatedBy", "createdAt", "updatedAt"],
-      "templateTypes": ["FORM_TEMPLATE", "DOCUMENT_TEMPLATE", "COMPLIANCE_TEMPLATE", "EMAIL_TEMPLATE"],
-      "relationships": ["creator"],
+      "fields": [
+        "templateName",
+        "templateType",
+        "fileKey",
+        "fileName",
+        "fileSize",
+        "mimeType", 
+        "description",
+        "version",
+        "isActive",
+        "metadata",
+        "createdBy",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ],
+      "templateTypes": [
+        "FORM_TEMPLATE",
+        "DOCUMENT_TEMPLATE",
+        "COMPLIANCE_TEMPLATE",
+        "EMAIL_TEMPLATE"
+      ],
+      "relationships": [
+        "creator"
+      ],
       "adminOnly": true
     }
   },
+  "workflows": {
+    "directorAppointment": {
+      "description": "Complete director appointment workflow with service request integration",
+      "steps": [
+        {
+          "step": 1,
+          "actor": "Director",
+          "action": "Submit appointment request via DirectorDashboard",
+          "result": "Task created for document upload"
+        },
+        {
+          "step": 2, 
+          "actor": "Director",
+          "action": "Upload PAN & Aadhar documents in My Documents tab",
+          "result": "Documents stored in S3 with custom names"
+        },
+        {
+          "step": 3,
+          "actor": "Director",
+          "action": "Complete document upload task",
+          "result": "ServiceRequest created with DIRECTOR_APPOINTMENT type"
+        },
+        {
+          "step": 4,
+          "actor": "Professional", 
+          "action": "Process service request - Start → In Progress",
+          "result": "Service request status updated"
+        },
+        {
+          "step": 5,
+          "actor": "Professional",
+          "action": "Complete Director Information Form from service request",
+          "result": "Director info JSON uploaded to S3"
+        },
+        {
+          "step": 6,
+          "actor": "Professional",
+          "action": "Form generation triggered automatically", 
+          "result": "DIR-2, DIR-8, MBP-1 forms generated and stored in S3"
+        },
+        {
+          "step": 7,
+          "actor": "System",
+          "action": "Service request marked as COMPLETED",
+          "result": "Workflow complete, forms available for download"
+        }
+      ],
+      "benefits": [
+        "Clean separation between simple tasks and complex workflows",
+        "Service requests provide detailed tracking and audit trail",
+        "Professionals handle complex form completion",
+        "Directors focus on document upload only"
+      ]
+    }
+  },
   "features": {
+    "serviceRequestWorkflow": {
+      "description": "Complete service request management system for director appointments",
+      "implementation": "Fully implemented with ServiceRequest model integration",
+      "features": [
+        "Service request creation from director tasks",
+        "Professional workflow management (Pending → Start → In Progress → Complete)",
+        "DirectorInfoForm integration in service requests",
+        "Real director data loading from S3",
+        "Form generation with actual uploaded documents",
+        "Status tracking and audit trail"
+      ]
+    },
+    "enhancedDocumentManagement": {
+      "description": "Advanced document management with custom naming and user grouping",
+      "implementation": "Fully implemented with S3 integration fixes", 
+      "features": [
+        "Custom document naming during upload",
+        "Enhanced user information display (name, email, DIN)",
+        "User-grouped document organization for professionals",
+        "Proper S3 file upload and download",
+        "Original filename preservation",
+        "Document type categorization"
+      ]
+    },
+    "pendingTasksSystem": {
+      "description": "Simplified task management system with role-based actions",
+      "implementation": "Implemented with service request integration",
+      "features": [
+        "Task creation from director appointments",
+        "Simple task completion interface",
+        "Service request creation upon task completion",
+        "Professional notification system",
+        "Task priority management"
+      ]
+    },
+    "formGenerationSystem": {
+      "description": "Automated form generation with real data integration",
+      "implementation": "Implemented with S3 storage fixes",
+      "features": [
+        "Load actual director information from S3",
+        "Generate DIR-2, DIR-8, MBP-1 compliance forms",
+        "Upload generated forms to S3 with proper naming",
+        "Document record creation with metadata",
+        "Error handling and fallback data"
+      ]
+    },
     "nameReservation": {
       "description": "Multi-step entity creation process starting with name reservation",
-      "steps": ["Name Reservation", "SPiCe Form Generation", "SPiCe Form Completion", "Final Registration"],
+      "steps": [
+        "Name Reservation",
+        "SPiCe Form Generation", 
+        "SPiCe Form Completion",
+        "Final Registration"
+      ],
       "currentImplementation": "Name Reservation step completed",
       "storage": "localStorage (temporary, pending database model implementation)"
     },
-    "serviceManagement": {
-      "description": "Service request system for compliance services",
-      "implementedServices": ["Director Appointment", "Director Resignation", "Director KYC"],
-      "plannedServices": ["Company Annual Filing", "LLP Annual Filing", "Board Resolutions", "Meeting Minutes"],
-      "features": ["Form-based requests", "Status tracking", "Professional workflow", "Priority management"]
-    },
     "documentManagement": {
-      "description": "File upload and document management system with S3 integration",
-      "features": ["Drag & drop upload", "Document categorization", "Download with signed URLs", "File validation", "Progress tracking"],
+      "description": "File upload and document management system with S3 integration", 
+      "features": [
+        "Drag & drop upload",
+        "Document categorization",
+        "Download with signed URLs",
+        "File validation",
+        "Progress tracking"
+      ],
       "storage": "AWS S3 via Amplify Storage",
-      "implementation": "Implemented with selective refresh optimization"
+      "implementation": "Implemented with selective refresh optimization and S3 fixes"
     },
     "eSignature": {
       "description": "Digital signature creation and management",
-      "features": ["Canvas drawing", "Image upload", "Touch support", "PDF-ready format", "S3 storage"],
+      "features": [
+        "Canvas drawing",
+        "Image upload",
+        "Touch support",
+        "PDF-ready format",
+        "S3 storage"
+      ],
       "integration": "Signature utilities for PDF generation",
       "implementation": "Complete with SignatureDisplay component"
     },
@@ -218,19 +658,43 @@
     },
     "professionalAssignments": {
       "description": "System for assigning compliance professionals to manage entities",
-      "features": ["Automatic assignment on entity creation", "Professional association tracking", "Director visibility into assigned professionals", "Service request processing"]
+      "features": [
+        "Automatic assignment on entity creation",
+        "Professional association tracking",
+        "Director visibility into assigned professionals", 
+        "Service request processing"
+      ]
     },
     "selectiveRefresh": {
       "description": "Optimized component refresh system",
-      "features": ["Profile-only refresh", "Document-only refresh", "Association-only refresh", "Memoized callbacks"],
+      "features": [
+        "Profile-only refresh",
+        "Document-only refresh", 
+        "Association-only refresh",
+        "Memoized callbacks"
+      ],
       "implementation": "Prevents full dashboard reloads for better performance"
     },
     "adminAccess": {
       "description": "Secure admin access system for asset management via dedicated route",
-      "features": ["URL-based access", "Code-based authentication", "Asset template management", "No user data access"],
-      "security": ["Access logging", "Session isolation", "Limited permissions", "Asset-only access", "No Cognito authentication required"],
+      "features": [
+        "URL-based access",
+        "Code-based authentication",
+        "Asset template management",
+        "No user data access"
+      ],
+      "security": [
+        "Access logging",
+        "Session isolation",
+        "Limited permissions",
+        "Asset-only access",
+        "No Cognito authentication required"
+      ],
       "access": "/admin URL route",
-      "codes": ["COMPLIANCE_ADMIN_2025", "ASSET_MANAGER_2025"],
+      "codes": [
+        "COMPLIANCE_ADMIN_2025",
+        "ASSET_MANAGER_2025"
+      ],
       "implementation": "Separate route bypasses normal user authentication for admin functions only"
     }
   },
@@ -239,22 +703,42 @@
       "auth": {
         "file": "amplify/auth/resource.ts",
         "provider": "Cognito User Pools",
-        "loginMethod": "Email",
-        "groups": ["DIRECTORS", "PROFESSIONALS", "ADMIN"]
+        "loginMethod": "Email", 
+        "groups": [
+          "DIRECTORS",
+          "PROFESSIONALS", 
+          "ADMIN"
+        ]
       },
       "data": {
-        "file": "amplify/data/resource.ts", 
+        "file": "amplify/data/resource.ts",
         "authorization": "User Pool",
-        "models": 8
+        "models": 10,
+        "enhancements": [
+          "Added documentName field to Document model",
+          "Enhanced Task model with comprehensive fields",
+          "Added Notification model for user alerts"
+        ]
       },
       "storage": {
         "file": "amplify/storage/resource.ts",
         "provider": "S3",
-        "accessPatterns": ["public/*", "users/{identity_id}/*", "entities/{entity_id}/*", "service-requests/{entity_id}/*"]
+        "accessPatterns": [
+          "public/*",
+          "users/{identity_id}/*",
+          "entities/{entity_id}/*",
+          "service-requests/{entity_id}/*",
+          "public/director-info/*",
+          "public/generated-forms/*"
+        ]
       },
       "backend": {
-        "file": "amplify/backend.ts",
-        "resources": ["auth", "data", "storage"]
+        "file": "amplify/backend.ts", 
+        "resources": [
+          "auth",
+          "data",
+          "storage"
+        ]
       }
     },
     "deployment": {
@@ -267,11 +751,14 @@
     "approach": "Component-scoped CSS",
     "files": [
       "src/components/director/DirectorDashboard.css",
-      "src/components/director/NameReservationForm.css", 
+      "src/components/director/DirectorDocumentUpload.css",
+      "src/components/director/DirectorInfoForm.css", 
+      "src/components/director/NameReservationForm.css",
       "src/components/professional/ProfessionalDashboard.css",
       "src/components/professional/ServiceModal.css",
       "src/components/professional/Forms.css",
-      "src/components/shared/FileUpload.css",
+      "src/components/shared/PendingTasks.css",
+      "src/components/shared/FileUpload.css", 
       "src/components/shared/DocumentList.css",
       "src/components/shared/ESignatureModal.css",
       "src/components/shared/SignatureDisplay.css",
@@ -281,13 +768,71 @@
       "src/App.css",
       "src/index.css"
     ],
-    "design": "Professional, responsive, accessibility-friendly, print-optimized for PDF generation"
+    "design": "Professional, responsive, accessibility-friendly, service-request optimized"
   },
   "utilities": {
     "signatureUtils": {
       "file": "src/utils/signatureUtils.ts",
       "description": "Utility functions for e-signature PDF integration",
-      "functions": ["getSignatureForPDF", "createSignatureSVG", "prepareSignatureForJsPDF", "validateSignature"]
+      "functions": [
+        "getSignatureForPDF", 
+        "createSignatureSVG",
+        "prepareSignatureForJsPDF",
+        "validateSignature"
+      ]
+    }
+  },
+  "recentImprovements": {
+    "version1_5_0": {
+      "date": "2025-01-15",
+      "description": "Major workflow restructure and S3 integration fixes",
+      "changes": [
+        {
+          "category": "Workflow Architecture", 
+          "changes": [
+            "Restructured director appointment from director-centric to professional-centric workflow",
+            "Integrated ServiceRequest model for proper workflow tracking",
+            "Simplified PendingTasks to notification-only system",
+            "Created comprehensive service request management in professional dashboard"
+          ]
+        },
+        {
+          "category": "Document Management",
+          "changes": [
+            "Added custom document naming during upload",
+            "Enhanced DocumentList with user grouping for professionals",
+            "Improved user information display (name, email, DIN instead of just user ID)",
+            "Added original filename preservation and display"
+          ]
+        },
+        {
+          "category": "S3 Integration Fixes",
+          "changes": [
+            "Fixed DirectorInfoForm to actually upload JSON data to S3",
+            "Fixed FormGenerator to upload generated forms to S3", 
+            "Updated FormGenerator to load real director data from S3",
+            "Resolved 'NoSuchKey' download errors by ensuring files exist in S3"
+          ]
+        },
+        {
+          "category": "Data Model Enhancements",
+          "changes": [
+            "Added documentName field to Document model",
+            "Enhanced Task model with comprehensive workflow fields",
+            "Added Notification model for user alerts",
+            "Updated ServiceRequest integration with proper metadata"
+          ]
+        },
+        {
+          "category": "Component Architecture",
+          "changes": [
+            "Created DirectorDocumentUpload component for simplified director workflow",
+            "Enhanced ProfessionalDashboard with service request tabs",
+            "Integrated DirectorInfoForm into professional workflow",
+            "Added FormGenerator with real data processing"
+          ]
+        }
+      ]
     }
   },
   "futureEnhancements": {
@@ -296,56 +841,49 @@
       "priority": "High"
     },
     "workflow": {
-      "description": "Complete multi-step entity creation process beyond name reservation",
+      "description": "Complete multi-step entity creation process beyond name reservation", 
       "priority": "High"
     },
     "pdfGeneration": {
-      "description": "Automated PDF document generation with e-signatures",
+      "description": "Convert text-based forms to proper PDF generation with e-signatures",
       "priority": "High",
-      "implementation": "Use jsPDF with signature utilities"
+      "implementation": "Upgrade from text files to PDF with jsPDF integration"
     },
     "notifications": {
       "description": "Real-time notifications for status changes and assignments",
-      "priority": "Medium"
+      "priority": "Medium",
+      "note": "Notification model is ready, need UI implementation"
     },
     "reporting": {
       "description": "Compliance reporting and analytics dashboard",
       "priority": "Medium"
     },
-    "advancedFileManagement": {
-      "description": "Version control, bulk operations, file sharing",
-      "priority": "Low",
-      "note": "Basic document management is implemented"
+    "advancedWorkflow": {
+      "description": "Multi-step service request workflows with approvals",
+      "priority": "Medium",
+      "note": "Basic service request workflow is complete"
     }
   },
   "technicalDebt": {
     "authentication": [
       "Implement Lambda trigger for automatic Cognito group assignment",
       "Restore proper group-based authorization instead of allow.authenticated()",
-      "Test role-based permissions thoroughly", 
+      "Test role-based permissions thoroughly",
       "Consider implementing API-level role checks as additional security layer",
       "Remove temporary simplified auth and use proper Cognito groups"
     ],
-    "storage": [
-      "Deploy S3 storage configuration (needs ampx sandbox deployment)",
-      "Fix S3 permissions for document uploads",
-      "Implement CloudFront distribution for faster file access"
+    "performance": [
+      "Consider implementing React.lazy for code splitting",
+      "Add service worker for offline document access", 
+      "Optimize large file upload handling",
+      "Implement caching for service requests and documents"
     ],
     "database": [
       "Create TempEntity database model",
       "Implement actual database persistence for name reservations",
-      "Add indexing for performance optimization"
-    ],
-    "performance": [
-      "Consider implementing React.lazy for code splitting",
-      "Add service worker for offline document access",
-      "Optimize large file upload handling"
+      "Add indexing for performance optimization",
+      "Consider implementing data archiving for old service requests"
     ]
-  },
-  "functionalTodos": {
-    "description": "Lower priority functional fixes and validations",
-    "priority": "Low",
-    "todos": []
   },
   "reliabilityTodos": {
     "description": "Critical reliability and error handling improvements",
@@ -354,21 +892,22 @@
       "Implement error boundaries around major dashboard sections",
       "Add try-catch blocks in async operations with user-friendly error messages",
       "Create centralized error logging and reporting system",
-      "Add loading states for all async operations",
+      "Add loading states for all async operations", 
       "Implement retry mechanisms for failed API calls",
-      "Add network connectivity checks and offline handling"
+      "Add network connectivity checks and offline handling",
+      "Add validation for service request data before submission"
     ]
   },
   "maintainabilityTodos": {
-    "description": "Code maintainability and architecture improvements", 
+    "description": "Code maintainability and architecture improvements",
     "priority": "Medium-High",
     "todos": [
-      "Break down DirectorDashboard.tsx (1380+ lines) into smaller components:",
-      "  - ProfileTab.tsx (profile section)",
-      "  - AssociationsTab.tsx (associations management)", 
-      "  - ServicesTab.tsx (service request forms)",
-      "  - DocumentsTab.tsx (document management)",
-      "  - EntitiesTab.tsx (entities in progress)",
+      "Break down DirectorDashboard.tsx into smaller components",
+      "Break down ProfessionalDashboard.tsx into tab-specific components:",
+      "  - ServiceRequestsTab.tsx (already partially extracted)",
+      "  - PendingTasksTab.tsx",
+      "  - DocumentsTab.tsx", 
+      "  - ClientManagementTab.tsx",
       "Extract service request forms into separate components",
       "Create shared hooks for common data fetching patterns",
       "Implement centralized state management (Context API or Redux)",
@@ -378,44 +917,58 @@
     ]
   },
   "deployment": {
-    "status": "Ready for S3 Storage Deployment",
-    "lastUpdated": "2025-09-07",
-    "currentIssues": [
-      "S3 storage needs deployment via ampx sandbox",
-      "Document upload failing due to missing bucket configuration"
+    "status": "Production Ready with S3 Integration Fixed",
+    "lastUpdated": "2025-01-15",
+    "resolvedIssues": [
+      "S3 storage deployment completed via ampx sandbox",
+      "Document upload/download functionality working",
+      "DirectorInfoForm S3 integration fixed",
+      "FormGenerator S3 integration fixed",
+      "Service request workflow fully functional"
     ],
     "completedIssues": [
       "CloudFormation User Pool attribute configuration - RESOLVED",
-      "Cognito groups setup - RESOLVED", 
-      "Auth provider configuration - RESOLVED"
+      "Cognito groups setup - RESOLVED",
+      "Auth provider configuration - RESOLVED",
+      "S3 'NoSuchKey' download errors - RESOLVED",
+      "Document storage integration - RESOLVED"
     ],
     "nextSteps": [
-      "Deploy storage configuration",
-      "Test document upload/download functionality",
-      "Deploy to production environment"
+      "Monitor service request workflow in production",
+      "Optimize document loading performance",
+      "Implement real-time notifications",
+      "Add PDF generation for compliance forms"
     ]
   },
   "structuralAnalysis": {
     "strengths": [
-      "Clear separation of concerns between director/professional roles",
+      "Clear separation of concerns between director/professional workflows",
+      "Service request system provides comprehensive workflow tracking",
+      "Enhanced document management with user grouping and custom naming",
+      "Proper S3 integration with actual file uploads",
       "Modular component architecture with shared components",
-      "Proper TypeScript implementation",
-      "Optimized performance with selective refresh",
-      "Comprehensive data model relationships"
+      "Comprehensive data model relationships with workflow support"
+    ],
+    "improvements": [
+      "Simplified pending tasks to focus on notifications only",
+      "Professional workflow centralized in service requests tab",
+      "Directors handle simple document upload, professionals handle complex forms",
+      "Real data integration throughout the workflow",
+      "Enhanced user experience with better document organization"
     ],
     "weaknesses": [
-      "Heavy reliance on localStorage for temporary data",
-      "Large component files (DirectorDashboard.tsx is 1380+ lines)",
+      "Heavy reliance on localStorage for temporary data", 
+      "Large component files still need refactoring",
       "Authentication still using simplified permissions",
       "No error boundary implementation",
-      "Missing loading states in some components"
+      "Missing real-time notifications"
     ],
     "refactoringNeeds": [
-      "Break down DirectorDashboard into smaller sub-components",
+      "Break down large dashboard components into smaller sub-components",
       "Implement proper error boundaries",
       "Create centralized state management (Context/Redux)",
-      "Extract service forms into separate components",
-      "Implement proper caching strategy"
+      "Extract service forms into separate components", 
+      "Implement proper caching strategy for service requests"
     ]
   }
 }

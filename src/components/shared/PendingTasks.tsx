@@ -8,9 +8,10 @@ interface PendingTasksProps {
   userRole: 'DIRECTORS' | 'PROFESSIONALS';
   onDirectorInfoTask?: (taskData: any) => void;
   onDirectorFormGeneration?: (taskData: any) => void;
+  onDirectorInfoFormTask?: (taskData: any) => void;
 }
 
-const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole, onDirectorInfoTask, onDirectorFormGeneration }) => {
+const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole, onDirectorInfoTask, onDirectorFormGeneration, onDirectorInfoFormTask }) => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,12 +263,33 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
                         >
                           🔗 Associate DIN & Email
                         </button>
-                      ) : task.title.includes('Complete Director Information') ? (
+                      ) : task.title.includes('Upload Documents for Director') ? (
                         <button
                           className="director-info-btn"
                           onClick={() => handleDirectorInfoCompletionTask(task)}
                         >
-                          📝 Complete Information
+                          📝 Complete Document Task
+                        </button>
+                      ) : task.title.includes('Complete Director Information Form') ? (
+                        <button
+                          className="director-info-btn"
+                          onClick={() => {
+                            if (onDirectorInfoFormTask && task.metadata) {
+                              try {
+                                const metadata = JSON.parse(task.metadata);
+                                const taskData = {
+                                  taskId: task.id,
+                                  appointmentData: metadata.appointmentData
+                                };
+                                onDirectorInfoFormTask(taskData);
+                              } catch (error) {
+                                console.error('Error parsing task metadata:', error);
+                                alert('Error loading task data. Please refresh and try again.');
+                              }
+                            }
+                          }}
+                        >
+                          📝 Complete Director Form
                         </button>
                       ) : task.title.includes('Generate Director Appointment Forms') ? (
                         <button
@@ -275,6 +297,13 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
                           onClick={() => handleDirectorFormGenerationTask(task)}
                         >
                           📄 Generate Forms
+                        </button>
+                      ) : task.title.includes('Complete Director Appointment Request') ? (
+                        <button
+                          className="complete-task-btn"
+                          onClick={() => handleCompleteTask(task.id)}
+                        >
+                          ✅ Complete Task
                         </button>
                       ) : (
                         <button

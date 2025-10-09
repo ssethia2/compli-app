@@ -14,6 +14,7 @@ interface DocumentListProps {
   allowDelete?: boolean;
   onDocumentDeleted?: (documentId: string) => void;
   onRefresh?: () => void;
+  groupByUser?: boolean; // New prop for grouping by user
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
@@ -23,11 +24,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
   showUploader = false,
   allowDelete = false,
   onDocumentDeleted,
-  onRefresh
+  onRefresh,
+  groupByUser = false
 }) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const [userProfiles, setUserProfiles] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     fetchDocuments();
@@ -55,6 +58,30 @@ const DocumentList: React.FC<DocumentListProps> = ({
       );
       
       setDocuments(sortedDocs);
+
+      // Fetch user profiles for uploaders if showing uploader info or grouping by user
+      if ((showUploader || groupByUser) && sortedDocs.length > 0) {
+        const uniqueUploaders = [...new Set(sortedDocs.map(doc => doc.uploadedBy).filter(Boolean))];
+        const profilePromises = uniqueUploaders.map(async (uploadedBy) => {
+          try {
+            const profiles = await client.models.UserProfile.list({
+              filter: { userId: { eq: uploadedBy } }
+            });
+            const profile = profiles.data.length > 0 ? profiles.data[0] : null;
+            return { userId: uploadedBy, profile };
+          } catch (error) {
+            console.error(`Error fetching profile for ${uploadedBy}:`, error);
+            return { userId: uploadedBy, profile: null };
+          }
+        });
+
+        const profileResults = await Promise.all(profilePromises);
+        const profileMap = new Map();
+        profileResults.forEach(({ userId, profile }) => {
+          profileMap.set(userId, profile);
+        });
+        setUserProfiles(profileMap);
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
     } finally {
@@ -150,8 +177,39 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
-  const formatDocumentType = (type: string): string => {
+  const formatDocumentType = (type: string | null | undefined): string => {
+    if (!type) return 'Unknown';
     return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const formatUploaderInfo = (uploadedBy: string): string => {
+    const profile = userProfiles.get(uploadedBy);
+    if (!profile) return uploadedBy;
+
+    const parts = [];
+    if (profile.displayName) parts.push(profile.displayName);
+    if (profile.email) parts.push(profile.email);
+    if (profile.din) parts.push(`DIN: ${profile.din}`);
+    
+    return parts.length > 0 ? parts.join(' • ') : uploadedBy;
+  };
+
+  const groupDocumentsByUser = () => {
+    const grouped = new Map<string, any[]>();
+    
+    documents.forEach(doc => {
+      const uploadedBy = doc.uploadedBy;
+      if (!grouped.has(uploadedBy)) {
+        grouped.set(uploadedBy, []);
+      }
+      grouped.get(uploadedBy)?.push(doc);
+    });
+
+    return Array.from(grouped.entries()).map(([userId, userDocs]) => ({
+      userId,
+      profile: userProfiles.get(userId),
+      documents: userDocs
+    }));
   };
 
   if (loading) {
@@ -166,6 +224,80 @@ const DocumentList: React.FC<DocumentListProps> = ({
     );
   }
 
+  const renderDocumentItem = (document: any, showUploaderInMeta = true) => (
+    <div key={document.id} className="document-item">
+      <div className="document-icon">
+        {getFileIcon(document.fileName)}
+      </div>
+      
+      <div className="document-info">
+        <div className="document-name">{document.documentName || document.fileName}</div>
+        {document.documentName && document.documentName !== document.fileName && (
+          <div className="original-filename">File: {document.fileName}</div>
+        )}
+        <div className="document-meta">
+          <span className="document-type">
+            {formatDocumentType(document.documentType)}
+          </span>
+          <span className="document-size">
+            {formatFileSize(document.fileSize || 0)}
+          </span>
+          <span className="document-date">
+            {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'Unknown date'}
+          </span>
+          {showUploader && showUploaderInMeta && (
+            <span className="document-uploader">
+              by {formatUploaderInfo(document.uploadedBy)}
+            </span>
+          )}
+        </div>
+      </div>
+      
+      <div className="document-actions">
+        <button
+          className="action-button download-button"
+          onClick={() => downloadDocument(document)}
+          disabled={downloadingIds.has(document.id)}
+        >
+          {downloadingIds.has(document.id) ? '⏳' : '⬇️'} Download
+        </button>
+        
+        {allowDelete && (
+          <button
+            className="action-button delete-button"
+            onClick={() => deleteDocument(document)}
+          >
+            🗑️ Delete
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  if (groupByUser) {
+    const groupedData = groupDocumentsByUser();
+    
+    return (
+      <div className="document-list">
+        <div className="document-list-header">
+          <h3>Documents ({documents.length})</h3>
+        </div>
+        
+        {groupedData.map(({ userId, documents: userDocs }) => (
+          <div key={userId} className="user-document-group">
+            <div className="user-group-header">
+              <h4>{formatUploaderInfo(userId)}</h4>
+              <span className="document-count">({userDocs.length} documents)</span>
+            </div>
+            <div className="document-items">
+              {userDocs.map(document => renderDocumentItem(document, false))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="document-list">
       <div className="document-list-header">
@@ -173,52 +305,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       </div>
       
       <div className="document-items">
-        {documents.map(document => (
-          <div key={document.id} className="document-item">
-            <div className="document-icon">
-              {getFileIcon(document.fileName)}
-            </div>
-            
-            <div className="document-info">
-              <div className="document-name">{document.fileName}</div>
-              <div className="document-meta">
-                <span className="document-type">
-                  {formatDocumentType(document.documentType)}
-                </span>
-                <span className="document-size">
-                  {formatFileSize(document.fileSize || 0)}
-                </span>
-                <span className="document-date">
-                  {document.uploadedAt ? new Date(document.uploadedAt).toLocaleDateString() : 'Unknown date'}
-                </span>
-                {showUploader && (
-                  <span className="document-uploader">
-                    by {document.uploadedBy}
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="document-actions">
-              <button
-                className="action-button download-button"
-                onClick={() => downloadDocument(document)}
-                disabled={downloadingIds.has(document.id)}
-              >
-                {downloadingIds.has(document.id) ? '⏳' : '⬇️'} Download
-              </button>
-              
-              {allowDelete && (
-                <button
-                  className="action-button delete-button"
-                  onClick={() => deleteDocument(document)}
-                >
-                  🗑️ Delete
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+        {documents.map(document => renderDocumentItem(document))}
       </div>
     </div>
   );

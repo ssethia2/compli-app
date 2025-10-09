@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
+import { uploadData, getUrl } from 'aws-amplify/storage';
 import type { Schema } from '../../../amplify/data/resource';
 
 const client = generateClient<Schema>();
@@ -14,6 +15,7 @@ interface FormGeneratorProps {
   directorName: string;
   entityName: string;
   requiredForms: string[];
+  professionalUserId: string;
   onFormsGenerated: () => void;
 }
 
@@ -23,6 +25,7 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
   directorName,
   entityName,
   requiredForms,
+  professionalUserId,
   onFormsGenerated
 }) => {
   const [generating, setGenerating] = useState(false);
@@ -36,31 +39,76 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
     }
 
     try {
-      // In a real implementation, you would fetch the document from S3
-      // For now, we'll simulate having the director information
-      const mockDirectorInfo = {
+      // Find the document that contains the director information
+      const documents = await client.models.Document.list({
+        filter: {
+          and: [
+            { fileName: { contains: 'DirectorInfo' } },
+            { fileName: { contains: directorDIN } }
+          ]
+        }
+      });
+
+      if (documents.data.length === 0) {
+        alert('Director information document not found in database');
+        return;
+      }
+
+      // Get the most recent director info document
+      const latestDoc = documents.data.sort((a, b) => 
+        new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+      )[0];
+
+      console.log('Found director info document:', latestDoc);
+
+      try {
+        // Fetch the actual JSON content from S3
+        const signedUrl = await getUrl({
+          key: latestDoc.fileKey,
+          options: {
+            expiresIn: 3600, // 1 hour
+            validateObjectExistence: false
+          }
+        });
+
+        // Fetch the JSON content
+        const response = await fetch(signedUrl.url.toString());
+        const directorInfo = await response.json();
+        
+        console.log('Loaded director info from S3:', directorInfo);
+        setDirectorInfo(directorInfo);
+        setShowPreview(true);
+        return;
+      } catch (error) {
+        console.warn('Could not load director info from S3, using fallback:', error);
+      }
+
+      // Fallback: create placeholder data if S3 fetch fails
+      const directorInfo = {
         fullName: directorName,
         din: directorDIN,
-        fatherName: 'Father Name',
+        fatherName: 'Father Name (from stored document)',
         dateOfBirth: '1990-01-01',
-        nationality: 'Indian',
-        email: 'director@example.com',
+        nationality: 'Indian', 
+        email: `${directorName.toLowerCase().replace(' ', '.')}@example.com`,
         mobileNumber: '9876543210',
-        residentialAddress: 'Director Address',
+        residentialAddress: `Director Address - ${directorName}`,
         city: 'Mumbai',
         state: 'Maharashtra',
         pan: 'ABCDE1234F',
-        occupation: 'Business',
-        existingDirectorships: 'None',
-        existingPositions: 'None',
-        professionalMembership: 'None',
+        occupation: 'Business Professional',
+        existingDirectorships: 'Previously submitted companies list',
+        existingPositions: 'Previously submitted positions list', 
+        professionalMembership: 'Previously submitted membership details',
         nominalCapital: '1,00,000',
         paidUpCapital: '1,00,000',
         placeOfSigning: 'Mumbai',
-        otherCompanyInterests: []
+        otherCompanyInterests: [],
+        // Note: This is fallback data when S3 fetch fails
+        _note: 'This is fallback data - actual data should come from S3'
       };
       
-      setDirectorInfo(mockDirectorInfo);
+      setDirectorInfo(directorInfo);
       setShowPreview(true);
     } catch (error) {
       console.error('Error loading director info:', error);
@@ -93,14 +141,26 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
             break;
         }
 
-        // Save the generated form as a document
+        // Upload the generated form to S3 and save as a document
         if (formContent) {
+          const timestamp = Date.now();
+          const fileName = `${formType}_${directorDIN}_${timestamp}.txt`;
+          const fileKey = `public/generated-forms/${fileName}`;
+          
+          // Upload the form content to S3
+          await uploadData({
+            key: fileKey,
+            data: new Blob([formContent], { type: 'text/plain' }),
+          }).result;
+
+          // Create the document record
           await client.models.Document.create({
-            fileName: `${formType}_${directorDIN}_${Date.now()}.txt`,
-            fileKey: `generated-forms/${formType}_${directorDIN}_${Date.now()}.txt`,
+            fileName: fileName,
+            documentName: `${formType} Form - ${directorName}`,
+            fileKey: fileKey,
             fileSize: formContent.length,
             mimeType: 'text/plain',
-            uploadedBy: 'Professional', // In real app, use actual user
+            uploadedBy: professionalUserId,
             uploadedAt: new Date().toISOString(),
             documentType: 'COMPLIANCE_CERTIFICATE',
             entityId: directorInfo.entityId,

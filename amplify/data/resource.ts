@@ -161,6 +161,7 @@ const schema = a.schema({
   // Document model for file management
   Document: a.model({
     fileName: a.string().required(),
+    documentName: a.string(), // Custom name given by user
     fileKey: a.string().required(), // S3 key
     fileSize: a.integer(),
     mimeType: a.string(),

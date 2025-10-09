@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
+import { uploadData } from 'aws-amplify/storage';
 import type { Schema } from '../../../amplify/data/resource';
 import CompanyForm from './CompanyForm';
 import LLPForm from './LLPForm';
@@ -10,12 +11,175 @@ import ServiceModal from './ServiceModal';
 import PendingTasks from '../shared/PendingTasks';
 import DocumentList from '../shared/DocumentList';
 import FormGenerator from './FormGenerator';
+import DirectorInfoForm from '../director/DirectorInfoForm';
+import SignatureDisplay from '../shared/SignatureDisplay';
 import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
 
+// Director E-Signatures Component
+interface DirectorESignaturesProps {
+  professionalId: string;
+  associations: any[];
+}
+
+const DirectorESignatures: React.FC<DirectorESignaturesProps> = ({ professionalId: _professionalId, associations }) => {
+  const [directorSignatures, setDirectorSignatures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDirectorSignatures();
+  }, [associations]);
+
+  const fetchDirectorSignatures = async () => {
+    setLoading(true);
+    try {
+      // Get unique director user IDs from associations
+      const directorUserIds = [...new Set(associations.map(assoc => assoc.userId))];
+
+      // Fetch user profiles with e-signatures
+      const signaturePromises = directorUserIds.map(async (userId) => {
+        try {
+          const profiles = await client.models.UserProfile.list({
+            filter: { userId: { eq: userId } }
+          });
+
+          if (profiles.data.length > 0) {
+            const profile = profiles.data[0];
+            if (profile.eSignImageUrl) {
+              return {
+                userId: profile.userId,
+                displayName: profile.displayName || profile.email,
+                email: profile.email,
+                din: profile.din,
+                eSignImageUrl: profile.eSignImageUrl
+              };
+            }
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching signature for director ${userId}:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(signaturePromises);
+      const validSignatures = results.filter(sig => sig !== null);
+      setDirectorSignatures(validSignatures);
+    } catch (error) {
+      console.error('Error fetching director signatures:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadSignature = async (director: any) => {
+    try {
+      const { getUrl } = await import('aws-amplify/storage');
+      const signedUrl = await getUrl({
+        key: director.eSignImageUrl,
+        options: {
+          expiresIn: 3600,
+          validateObjectExistence: false
+        }
+      });
+
+      const link = document.createElement('a');
+      link.href = signedUrl.url.toString();
+      link.download = `${director.displayName || director.din}_signature.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading signature:', error);
+      alert('Failed to download signature');
+    }
+  };
+
+  if (loading) {
+    return <div style={{ padding: '1rem' }}>Loading director e-signatures...</div>;
+  }
+
+  if (directorSignatures.length === 0) {
+    return (
+      <div style={{
+        padding: '1.5rem',
+        backgroundColor: '#f3f4f6',
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: '#6b7280'
+      }}>
+        No director e-signatures available yet
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+      {directorSignatures.map(director => (
+        <div
+          key={director.userId}
+          style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '1rem',
+            backgroundColor: 'white'
+          }}
+        >
+          <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+              {director.displayName}
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              {director.email}
+            </div>
+            {director.din && (
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                DIN: {director.din}
+              </div>
+            )}
+          </div>
+          <div style={{
+            marginBottom: '0.75rem',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <SignatureDisplay
+              signatureKey={director.eSignImageUrl}
+              width="200px"
+              height="80px"
+              showBorder={true}
+              showLabel={false}
+            />
+          </div>
+          <button
+            onClick={() => downloadSignature(director)}
+            style={{
+              width: '100%',
+              padding: '0.5rem',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            📥 Download Signature
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Service Requests Tab Component
-const ServiceRequestsTab: React.FC = () => {
+interface ServiceRequestsTabProps {
+  onDirectorInfoFormOpen?: (taskId: string, appointmentData: any) => void;
+}
+
+const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoFormOpen }) => {
   const [serviceRequests, setServiceRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -331,12 +495,35 @@ const ServiceRequestsTab: React.FC = () => {
                       </>
                     )}
                     {request.status === 'IN_PROGRESS' && (
-                      <button 
-                        className="action-button"
-                        onClick={() => updateRequestStatus(request.id, 'COMPLETED')}
-                      >
-                        Complete
-                      </button>
+                      <>
+                        {request.serviceType === 'DIRECTOR_APPOINTMENT' && (
+                          <button 
+                            className="action-button director-info-btn"
+                            onClick={() => {
+                              try {
+                                const requestData = JSON.parse(request.requestData || '{}');
+                                if (onDirectorInfoFormOpen) {
+                                  onDirectorInfoFormOpen(
+                                    `service-request-${request.id}`,
+                                    requestData.appointmentData || requestData
+                                  );
+                                }
+                              } catch (error) {
+                                console.error('Error parsing service request data:', error);
+                                alert('Error loading appointment data');
+                              }
+                            }}
+                          >
+                            📝 Complete Director Form
+                          </button>
+                        )}
+                        <button 
+                          className="action-button"
+                          onClick={() => updateRequestStatus(request.id, 'COMPLETED')}
+                        >
+                          Complete
+                        </button>
+                      </>
                     )}
                     </td>
                   </tr>
@@ -421,6 +608,11 @@ const ProfessionalDashboard: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [formGenerationTasks, setFormGenerationTasks] = useState<any[]>([]);
+  const [showDirectorInfoForm, setShowDirectorInfoForm] = useState(false);
+  const [directorInfoFormData, setDirectorInfoFormData] = useState<any>(null);
+  const [currentDirectorInfoTaskId, setCurrentDirectorInfoTaskId] = useState<string | null>(null);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [selectedDirectorForTask, setSelectedDirectorForTask] = useState<any>(null);
   
   // Service modal state
   const [serviceModal, setServiceModal] = useState<{
@@ -668,6 +860,98 @@ const ProfessionalDashboard: React.FC = () => {
   
   const closeServiceModal = () => {
     setServiceModal({ isOpen: false, entity: null, mode: 'view' });
+  };
+
+  // Handle DirectorInfoForm submission by professionals
+  const handleDirectorInfoSubmit = async (directorInfo: any) => {
+    try {
+      // Create the file key and JSON content
+      const timestamp = Date.now();
+      const fileKey = `public/director-info/${user?.username}/${directorInfo.din}_${timestamp}.json`;
+      const jsonContent = JSON.stringify(directorInfo, null, 2);
+      const fileName = `DirectorInfo_${directorInfo.din}_${timestamp}.json`;
+
+      // Upload the JSON data to S3
+      await uploadData({
+        key: fileKey,
+        data: new Blob([jsonContent], { type: 'application/json' }),
+      }).result;
+
+      // Store the director information document record
+      const directorInfoDoc = await client.models.Document.create({
+        fileName: fileName,
+        documentName: `Director Information - ${directorInfo.fullName || 'Unknown Director'}`,
+        fileKey: fileKey,
+        fileSize: jsonContent.length,
+        mimeType: 'application/json',
+        uploadedBy: user?.username || '',
+        uploadedAt: new Date().toISOString(),
+        documentType: 'COMPLIANCE_CERTIFICATE',
+        entityId: directorInfo.entityId,
+        entityType: directorInfo.entityType,
+        isPublic: false
+      });
+
+      // Complete the professional's DirectorInfoForm task or update service request
+      if (currentDirectorInfoTaskId) {
+        if (currentDirectorInfoTaskId.startsWith('service-request-')) {
+          // This is from a service request, update the service request status
+          const serviceRequestId = currentDirectorInfoTaskId.replace('service-request-', '');
+          await client.models.ServiceRequest.update({
+            id: serviceRequestId,
+            status: 'COMPLETED',
+            updatedAt: new Date().toISOString(),
+            comments: 'Director information form completed and appointment forms generated'
+          });
+        } else {
+          // Regular task completion
+          await client.models.Task.update({
+            id: currentDirectorInfoTaskId,
+            status: 'COMPLETED',
+            completedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // Create form generation task for the same professional
+      await client.models.Task.create({
+        assignedTo: user?.username || '',
+        assignedBy: user?.username,
+        taskType: 'FORM_COMPLETION',
+        title: 'Generate Director Appointment Forms',
+        description: `Director information has been completed for ${directorInfo.fullName} (DIN: ${directorInfo.din}) at ${directorInfo.companyName}. Please generate and prepare DIR-2, DIR-8, and MBP-1 forms for submission to authorities.`,
+        priority: 'HIGH',
+        status: 'PENDING',
+        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        relatedEntityId: directorInfo.entityId,
+        relatedEntityType: directorInfo.entityType,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        metadata: JSON.stringify({
+          directorDIN: directorInfo.din,
+          directorName: directorInfo.fullName,
+          entityName: directorInfo.companyName,
+          directorInfoDocument: {
+            fileName: directorInfoDoc.data?.fileName,
+            fileKey: directorInfoDoc.data?.fileKey,
+            documentType: directorInfoDoc.data?.documentType
+          },
+          requiredForms: ['DIR-2', 'DIR-8', 'MBP-1']
+        })
+      });
+
+      // Close the form
+      setShowDirectorInfoForm(false);
+      setDirectorInfoFormData(null);
+      setCurrentDirectorInfoTaskId(null);
+      
+      alert('Director information has been submitted successfully! You can now generate the DIR-2, DIR-8, and MBP-1 forms.');
+      
+    } catch (error) {
+      console.error('Error submitting director info:', error);
+      alert('Failed to submit director information. Please try again.');
+    }
   };
   
   // Render the appropriate form based on active tab
@@ -951,6 +1235,20 @@ const ProfessionalDashboard: React.FC = () => {
                           <td>{assoc.appointmentDate ? new Date(assoc.appointmentDate).toLocaleDateString() : '-'}</td>
                           <td>{assoc.cessationDate ? new Date(assoc.cessationDate).toLocaleDateString() : (assoc.isActive ? '-' : 'N/A')}</td>
                           <td>
+                            <button
+                              className="action-button"
+                              onClick={() => {
+                                setSelectedDirectorForTask({
+                                  userId: assoc.userId,
+                                  director: director,
+                                  entity: entity,
+                                  association: assoc
+                                });
+                                setShowCreateTaskModal(true);
+                              }}
+                            >
+                              Create Task
+                            </button>
                             <button className="action-button">View</button>
                             <button className="action-button delete-button">Remove</button>
                           </td>
@@ -965,7 +1263,13 @@ const ProfessionalDashboard: React.FC = () => {
             {activeTab === 'service-requests' && (
               <div>
                 <h2>Service Requests</h2>
-                <ServiceRequestsTab />
+                <ServiceRequestsTab 
+                  onDirectorInfoFormOpen={(taskId, appointmentData) => {
+                    setCurrentDirectorInfoTaskId(taskId);
+                    setDirectorInfoFormData(appointmentData);
+                    setShowDirectorInfoForm(true);
+                  }}
+                />
               </div>
             )}
             
@@ -979,6 +1283,12 @@ const ProfessionalDashboard: React.FC = () => {
                   // Switch to documents tab 
                   setActiveTab('documents');
                 }}
+                onDirectorInfoFormTask={(taskData) => {
+                  // Handle DirectorInfoForm completion tasks for professionals
+                  setCurrentDirectorInfoTaskId(taskData.taskId);
+                  setDirectorInfoFormData(taskData.appointmentData);
+                  setShowDirectorInfoForm(true);
+                }}
               />
             )}
             
@@ -988,7 +1298,7 @@ const ProfessionalDashboard: React.FC = () => {
                   <h3>Form Generation & Document Management</h3>
                   <p>Generate DIR-2, DIR-8, and MBP-1 forms from collected director information, and manage all compliance documents.</p>
                 </div>
-                
+
                 {/* Form Generation Tasks */}
                 {formGenerationTasks.length > 0 && (
                   <div style={{ marginBottom: '2rem' }}>
@@ -1001,6 +1311,7 @@ const ProfessionalDashboard: React.FC = () => {
                         entityName={task.entityName}
                         directorInfoDocument={task.directorInfoDocument}
                         requiredForms={task.requiredForms || ['DIR-2', 'DIR-8', 'MBP-1']}
+                        professionalUserId={user?.username || ''}
                         onFormsGenerated={() => {
                           // Remove this task from the list
                           setFormGenerationTasks(prev => prev.filter((_, i) => i !== index));
@@ -1009,10 +1320,21 @@ const ProfessionalDashboard: React.FC = () => {
                     ))}
                   </div>
                 )}
-                
+
+                {/* Director E-Signatures Section */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <h3>Director E-Signatures</h3>
+                  <p>View and download e-signatures from your associated directors</p>
+                  <DirectorESignatures
+                    professionalId={user?.username || ''}
+                    associations={associations}
+                  />
+                </div>
+
                 <DocumentList
                   showUploader={true}
                   allowDelete={true}
+                  groupByUser={true}
                   onRefresh={() => {}}
                 />
               </div>
@@ -1026,6 +1348,227 @@ const ProfessionalDashboard: React.FC = () => {
           entity={serviceModal.entity}
           mode={serviceModal.mode}
         />
+
+        <DirectorInfoForm
+          isOpen={showDirectorInfoForm}
+          onClose={() => {
+            setShowDirectorInfoForm(false);
+            setDirectorInfoFormData(null);
+            setCurrentDirectorInfoTaskId(null);
+          }}
+          onSubmit={handleDirectorInfoSubmit}
+          appointmentData={directorInfoFormData}
+        />
+
+        {/* Create Task Modal */}
+        {showCreateTaskModal && selectedDirectorForTask && (
+          <CreateTaskModal
+            isOpen={showCreateTaskModal}
+            onClose={() => {
+              setShowCreateTaskModal(false);
+              setSelectedDirectorForTask(null);
+            }}
+            director={selectedDirectorForTask.director}
+            entity={selectedDirectorForTask.entity}
+            professionalId={user?.username || ''}
+            onTaskCreated={() => {
+              setShowCreateTaskModal(false);
+              setSelectedDirectorForTask(null);
+              alert('Task created successfully!');
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Create Task Modal Component
+interface CreateTaskModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  director: any;
+  entity: any;
+  professionalId: string;
+  onTaskCreated: () => void;
+}
+
+const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
+  isOpen,
+  onClose,
+  director,
+  entity,
+  professionalId,
+  onTaskCreated
+}) => {
+  const [taskData, setTaskData] = useState({
+    title: '',
+    description: '',
+    taskType: 'DOCUMENT_UPLOAD' as 'DOCUMENT_UPLOAD' | 'FORM_COMPLETION' | 'APPROVAL_REQUIRED' | 'REVIEW_NEEDED' | 'SIGNATURE_REQUIRED' | 'INFORMATION_UPDATE',
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
+    dueDate: ''
+  });
+  const [creating, setCreating] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!taskData.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await client.models.Task.create({
+        assignedTo: director.userId,
+        assignedBy: professionalId,
+        taskType: taskData.taskType,
+        title: taskData.title,
+        description: taskData.description || undefined,
+        priority: taskData.priority,
+        status: 'PENDING',
+        dueDate: taskData.dueDate ? new Date(taskData.dueDate).toISOString() : undefined,
+        relatedEntityId: entity?.id,
+        relatedEntityType: entity?.type as 'COMPANY' | 'LLP' | undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        metadata: JSON.stringify({
+          createdByProfessional: true,
+          directorName: director.displayName || director.email,
+          entityName: entity?.name
+        })
+      });
+
+      onTaskCreated();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('Failed to create task. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="pan-upload-modal-overlay" onClick={onClose}>
+      <div className="pan-upload-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className="pan-upload-header">
+          <h3>Create Task for {director?.displayName || director?.email}</h3>
+          <button className="close-button" onClick={onClose}>×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="pan-upload-content">
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: '#f3f4f6', borderRadius: '4px' }}>
+            <div><strong>Director:</strong> {director?.displayName || director?.email}</div>
+            <div><strong>Entity:</strong> {entity?.name || 'N/A'}</div>
+            <div><strong>DIN:</strong> {director?.din || 'N/A'}</div>
+          </div>
+
+          <div className="pan-form-group">
+            <label htmlFor="taskTitle">Task Title *</label>
+            <input
+              type="text"
+              id="taskTitle"
+              value={taskData.title}
+              onChange={(e) => setTaskData({ ...taskData, title: e.target.value })}
+              placeholder="Enter task title"
+              required
+            />
+          </div>
+
+          <div className="pan-form-group">
+            <label htmlFor="taskDescription">Description</label>
+            <textarea
+              id="taskDescription"
+              value={taskData.description}
+              onChange={(e) => setTaskData({ ...taskData, description: e.target.value })}
+              placeholder="Enter task description"
+              rows={4}
+              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+          </div>
+
+          <div className="pan-form-group">
+            <label htmlFor="taskType">Task Type</label>
+            <select
+              id="taskType"
+              value={taskData.taskType}
+              onChange={(e) => setTaskData({ ...taskData, taskType: e.target.value as any })}
+              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              <option value="DOCUMENT_UPLOAD">Document Upload</option>
+              <option value="FORM_COMPLETION">Form Completion</option>
+              <option value="APPROVAL_REQUIRED">Approval Required</option>
+              <option value="REVIEW_NEEDED">Review Needed</option>
+              <option value="SIGNATURE_REQUIRED">Signature Required</option>
+              <option value="INFORMATION_UPDATE">Information Update</option>
+            </select>
+          </div>
+
+          <div className="pan-form-group">
+            <label htmlFor="priority">Priority</label>
+            <select
+              id="priority"
+              value={taskData.priority}
+              onChange={(e) => setTaskData({ ...taskData, priority: e.target.value as any })}
+              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+          </div>
+
+          <div className="pan-form-group">
+            <label htmlFor="dueDate">Due Date</label>
+            <input
+              type="date"
+              id="dueDate"
+              value={taskData.dueDate}
+              onChange={(e) => setTaskData({ ...taskData, dueDate: e.target.value })}
+              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+            <button
+              type="submit"
+              disabled={creating}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                backgroundColor: creating ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: creating ? 'not-allowed' : 'pointer',
+                fontSize: '1rem'
+              }}
+            >
+              {creating ? 'Creating...' : 'Create Task'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={creating}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: creating ? 'not-allowed' : 'pointer',
+                fontSize: '1rem'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

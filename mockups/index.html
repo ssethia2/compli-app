@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance App - UI Mockups</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 4rem;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .mockups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .mockup-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            border: 2px solid transparent;
+        }
+        
+        .mockup-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            border-color: rgba(255,255,255,0.3);
+        }
+        
+        .mockup-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .mockup-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+        
+        .mockup-description {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mockup-features {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mockup-features li {
+            padding: 0.25rem 0;
+            color: #059669;
+            font-size: 0.9rem;
+        }
+        
+        .mockup-features li::before {
+            content: "✓ ";
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .view-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            display: block;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .view-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .workflow-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 3rem 0;
+            color: white;
+        }
+        
+        .workflow-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .workflow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .workflow-step {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .workflow-step:not(:last-child)::after {
+            content: "→";
+            position: absolute;
+            right: -1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 auto 0.5rem;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .step-desc {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .tech-stack {
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .tech-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .tech-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tech-name {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        @media (max-width: 768px) {
+            .workflow-steps {
+                flex-direction: column;
+            }
+            
+            .workflow-step:not(:last-child)::after {
+                content: "↓";
+                right: auto;
+                top: auto;
+                bottom: -1rem;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Compliance App UI Mockups</h1>
+            <p>Interactive mockups showcasing the director appointment workflow, service request management, and document handling system</p>
+        </div>
+        
+        <div class="mockups-grid">
+            <a href="director-dashboard.html" class="mockup-card">
+                <span class="mockup-icon">👤</span>
+                <h2 class="mockup-title">Director Dashboard</h2>
+                <p class="mockup-description">
+                    Complete director interface for appointment requests, task management, and document uploads.
+                </p>
+                <ul class="mockup-features">
+                    <li>New appointment request form</li>
+                    <li>Pending tasks with priorities</li>
+                    <li>Document upload with custom naming</li>
+                    <li>Clean tabbed interface</li>
+                </ul>
+                <div class="view-button">View Director Dashboard</div>
+            </a>
+            
+            <a href="professional-dashboard.html" class="mockup-card">
+                <span class="mockup-icon">👩‍💼</span>
+                <h2 class="mockup-title">Professional Dashboard</h2>
+                <p class="mockup-description">
+                    Professional interface for managing service requests, tasks, and client document processing.
+                </p>
+                <ul class="mockup-features">
+                    <li>Service request workflow management</li>
+                    <li>Task prioritization system</li>
+                    <li>Client document organization</li>
+                    <li>Real-time statistics</li>
+                </ul>
+                <div class="view-button">View Professional Dashboard</div>
+            </a>
+            
+            <a href="service-request-workflow.html" class="mockup-card">
+                <span class="mockup-icon">⚙️</span>
+                <h2 class="mockup-title">Service Request Workflow</h2>
+                <p class="mockup-description">
+                    Detailed service request management with progress tracking and director form completion.
+                </p>
+                <ul class="mockup-features">
+                    <li>Workflow progress visualization</li>
+                    <li>Integrated director form</li>
+                    <li>Activity timeline</li>
+                    <li>Status management</li>
+                </ul>
+                <div class="view-button">View Service Workflow</div>
+            </a>
+            
+            <a href="document-management.html" class="mockup-card">
+                <span class="mockup-icon">📁</span>
+                <h2 class="mockup-title">Document Management</h2>
+                <p class="mockup-description">
+                    Comprehensive document storage system with user grouping, filtering, and upload management.
+                </p>
+                <ul class="mockup-features">
+                    <li>Drag & drop file uploads</li>
+                    <li>User-based document grouping</li>
+                    <li>Advanced filtering system</li>
+                    <li>Custom document naming</li>
+                </ul>
+                <div class="view-button">View Document System</div>
+            </a>
+        </div>
+        
+        <div class="workflow-section">
+            <h2 class="workflow-title">📊 Complete Director Appointment Workflow</h2>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Director Request</div>
+                    <div class="step-desc">Director submits appointment request via dashboard</div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Document Upload</div>
+                    <div class="step-desc">Upload PAN & Aadhar in My Documents tab</div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Service Request</div>
+                    <div class="step-desc">Professional receives service request to process</div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Form Completion</div>
+                    <div class="step-desc">Professional completes director information form</div>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">5</div>
+                    <div class="step-title">Form Generation</div>
+                    <div class="step-desc">System generates DIR-2, DIR-8, MBP-1 forms</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tech-stack">
+            <h2 style="text-align: center; margin-bottom: 1rem; color: #374151;">🛠️ Technology Stack</h2>
+            <div class="tech-grid">
+                <div class="tech-item">
+                    <div class="tech-icon">⚛️</div>
+                    <div class="tech-name">React + TypeScript</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">☁️</div>
+                    <div class="tech-name">AWS Amplify Gen 2</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">📊</div>
+                    <div class="tech-name">GraphQL + DynamoDB</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">🔒</div>
+                    <div class="tech-name">Cognito Auth</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">📁</div>
+                    <div class="tech-name">S3 Storage</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-icon">🎨</div>
+                    <div class="tech-name">Custom CSS</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -17,6 +17,8 @@ interface FileUploadProps {
   maxFileSize?: number; // in bytes
   acceptedFileTypes?: string[];
   isMultiple?: boolean;
+  defaultDocumentName?: string;
+  hideDocumentNameInput?: boolean;
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
@@ -28,12 +30,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onRefresh,
   maxFileSize = 10 * 1024 * 1024, // 10MB default
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'],
-  isMultiple = false
+  isMultiple = false,
+  defaultDocumentName = '',
+  hideDocumentNameInput = false
 }) => {
   const { user } = useAuthenticator();
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [documentName, setDocumentName] = useState(defaultDocumentName);
 
   const validateFile = (file: File): string | null => {
     if (file.size > maxFileSize) {
@@ -88,6 +93,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       // Create document record in database
       const documentData = {
         fileName: file.name,
+        documentName: documentName.trim() || defaultDocumentName || file.name,
         fileKey: fileKey,
         fileSize: file.size,
         mimeType: file.type,
@@ -129,8 +135,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
         onRefresh();
       }
       
-      // Clear progress
+      // Clear progress and document name
       setUploadProgress({});
+      setDocumentName('');
     } catch (error) {
       alert(`Upload failed: ${(error as Error).message}`);
     } finally {
@@ -152,6 +159,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   return (
     <div className="file-upload-container">
+      {!hideDocumentNameInput && (
+        <div className="document-name-input">
+          <label htmlFor="document-name">Document Name (optional)</label>
+          <input
+            id="document-name"
+            type="text"
+            value={documentName}
+            onChange={(e) => setDocumentName(e.target.value)}
+            placeholder="Enter a custom name for this document"
+            disabled={uploading}
+          />
+        </div>
+      )}
+
       <div
         className={`file-upload-area ${dragOver ? 'drag-over' : ''} ${uploading ? 'uploading' : ''}`}
         onDrop={handleDrop}

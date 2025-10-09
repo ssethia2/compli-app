@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Director Dashboard - Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .user-info {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .main-content {
+            padding: 2rem 0;
+        }
+        
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab:hover:not(.active) {
+            background: #f8f9ff;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .appointment-form {
+            display: grid;
+            gap: 1.5rem;
+        }
+        
+        .form-section {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            background: #fafafa;
+        }
+        
+        .form-section h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        
+        .pending-tasks {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #f8f9ff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .task-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+        
+        .task-info {
+            flex: 1;
+        }
+        
+        .task-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+        
+        .task-desc {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .task-action {
+            margin-left: 1rem;
+        }
+        
+        .priority-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 1rem;
+        }
+        
+        .priority-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .documents {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .upload-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: #fafbfc;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .document-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        
+        .doc-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+        
+        .doc-info {
+            flex: 1;
+        }
+        
+        .doc-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .doc-meta {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .doc-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+        
+        .btn-outline:hover {
+            background: #f3f4f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Director Dashboard</h1>
+            <div class="user-info">
+                Welcome back, John Doe • DIN: 12345678 • john.doe@example.com
+            </div>
+        </div>
+    </div>
+    
+    <div class="container main-content">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('appointment')">🏢 New Appointment</button>
+            <button class="tab" onclick="showTab('tasks')">📋 Pending Tasks (2)</button>
+            <button class="tab" onclick="showTab('documents')">📁 My Documents</button>
+        </div>
+        
+        <div id="appointment" class="tab-content">
+            <h2>Director Appointment Request</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Request appointment as director for a company or LLP</p>
+            
+            <form class="appointment-form">
+                <div class="form-section">
+                    <h3>📊 Entity Selection</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Entity Type</label>
+                            <select>
+                                <option>Select entity type</option>
+                                <option>Private Limited Company</option>
+                                <option>Limited Liability Partnership</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Company/LLP Name</label>
+                            <select>
+                                <option>Select entity</option>
+                                <option>Acme Technologies Pvt Ltd</option>
+                                <option>Digital Innovations LLP</option>
+                                <option>Green Energy Solutions Pvt Ltd</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>👤 Appointment Details</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Designation</label>
+                            <select>
+                                <option>Select designation</option>
+                                <option>Managing Director</option>
+                                <option>Executive Director</option>
+                                <option>Non-Executive Director</option>
+                                <option>Independent Director</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select>
+                                <option>Select category</option>
+                                <option>Promoter</option>
+                                <option>Non-Promoter</option>
+                                <option>Independent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Appointment Date</label>
+                            <input type="date" value="2024-01-15">
+                        </div>
+                        <div class="form-group">
+                            <label>Reason for Appointment</label>
+                            <select>
+                                <option>New appointment</option>
+                                <option>Replacement</option>
+                                <option>Additional director</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    🚀 Submit Appointment Request
+                </button>
+            </form>
+        </div>
+        
+        <div id="tasks" class="tab-content" style="display: none;">
+            <h2>Pending Tasks</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Tasks requiring your attention</p>
+            
+            <div class="pending-tasks">
+                <div class="task-item">
+                    <div class="task-icon">📄</div>
+                    <div class="task-info">
+                        <div class="task-title">Upload Documents for Director Appointment</div>
+                        <div class="task-desc">You have been appointed as a director at Acme Technologies Pvt Ltd. Please upload your PAN and Aadhar documents in the My Documents tab, then complete this task.</div>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+                            Due: Tomorrow • Created: 2 days ago
+                        </div>
+                    </div>
+                    <div class="priority-badge priority-high">HIGH</div>
+                    <div class="task-action">
+                        <button class="btn btn-primary btn-sm">📝 Complete Document Task</button>
+                    </div>
+                </div>
+                
+                <div class="task-item">
+                    <div class="task-icon">📋</div>
+                    <div class="task-info">
+                        <div class="task-title">Review Generated Forms</div>
+                        <div class="task-desc">DIR-2, DIR-8, and MBP-1 forms have been generated for your appointment. Please review and approve.</div>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+                            Due: In 5 days • Created: 1 hour ago
+                        </div>
+                    </div>
+                    <div class="priority-badge priority-high">HIGH</div>
+                    <div class="task-action">
+                        <button class="btn btn-primary btn-sm">👀 Review Forms</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="documents" class="tab-content" style="display: none;">
+            <h2>My Documents</h2>
+            <p style="color: #666; margin-bottom: 2rem;">Upload and manage your documents</p>
+            
+            <div class="documents">
+                <div class="upload-zone">
+                    <div class="upload-icon">📁</div>
+                    <p style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600;">
+                        Click or drag files to upload
+                    </p>
+                    <p style="color: #666; margin-bottom: 1rem;">
+                        Accepted: PDF, DOC, DOCX, JPG, PNG • Max 10MB
+                    </p>
+                    <div style="margin-bottom: 1rem;">
+                        <input type="text" placeholder="Enter custom document name (optional)" 
+                               style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; width: 300px;">
+                    </div>
+                    <button class="btn btn-primary">Choose Files</button>
+                </div>
+                
+                <h3 style="margin-bottom: 1rem;">Uploaded Documents (3)</h3>
+                
+                <div class="document-item">
+                    <div class="doc-icon">📄</div>
+                    <div class="doc-info">
+                        <div class="doc-name">PAN Card - John Doe</div>
+                        <div class="doc-meta">
+                            Identity • 2.3 MB • Uploaded: Jan 10, 2024
+                            <br><small style="font-style: italic;">File: PANCARD_JOHNDOE_scan.pdf</small>
+                        </div>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn btn-outline btn-sm">⬇️ Download</button>
+                        <button class="btn btn-outline btn-sm">🗑️ Delete</button>
+                    </div>
+                </div>
+                
+                <div class="document-item">
+                    <div class="doc-icon">📄</div>
+                    <div class="doc-info">
+                        <div class="doc-name">Aadhar Card - John Doe</div>
+                        <div class="doc-meta">
+                            Identity • 1.8 MB • Uploaded: Jan 10, 2024
+                            <br><small style="font-style: italic;">File: aadhaar_front_back.pdf</small>
+                        </div>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn btn-outline btn-sm">⬇️ Download</button>
+                        <button class="btn btn-outline btn-sm">🗑️ Delete</button>
+                    </div>
+                </div>
+                
+                <div class="document-item">
+                    <div class="doc-icon">📊</div>
+                    <div class="doc-info">
+                        <div class="doc-name">Director Information - John Doe</div>
+                        <div class="doc-meta">
+                            Compliance Certificate • 12 KB • Uploaded: Jan 12, 2024
+                            <br><small style="font-style: italic;">File: DirectorInfo_12345678_1705999378288.json</small>
+                        </div>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn btn-outline btn-sm">⬇️ Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

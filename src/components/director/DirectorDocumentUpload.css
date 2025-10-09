@@ -1,0 +1,191 @@
+/* DirectorDocumentUpload.css */
+
+.director-document-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 1000;
+  padding: 2rem 0;
+  overflow-y: auto;
+}
+
+.director-document-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  max-width: 700px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  margin: auto;
+}
+
+.director-document-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+  border-radius: 12px 12px 0 0;
+  position: relative;
+}
+
+.director-document-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.director-document-content {
+  padding: 2rem;
+}
+
+.context-info {
+  background-color: #e0f2fe;
+  border-left: 4px solid #0288d1;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border-radius: 4px;
+}
+
+.context-info p {
+  margin: 0.25rem 0;
+  color: #01579b;
+  font-weight: 500;
+}
+
+.document-upload-section {
+  margin-bottom: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #fafbfc;
+}
+
+.document-upload-section h4 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.form-actions button {
+  padding: 0.75rem 2rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.form-actions button[type="button"]:first-child {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.form-actions button[type="button"]:first-child:hover {
+  background: #e5e7eb;
+}
+
+.form-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info-section {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 2rem;
+}
+
+.info-section h4 {
+  margin: 0 0 0.75rem 0;
+  color: #0c4a6e;
+  font-size: 1rem;
+}
+
+.info-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #0369a1;
+}
+
+.info-section li {
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .director-document-modal-overlay {
+    padding: 1rem 0;
+  }
+
+  .director-document-modal {
+    width: 98%;
+    max-height: 95vh;
+  }
+  
+  .director-document-header {
+    padding: 1.5rem;
+  }
+  
+  .director-document-content {
+    padding: 1.5rem;
+  }
+
+  .document-upload-section {
+    padding: 1rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Request Workflow - Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .breadcrumb {
+            background: white;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .breadcrumb-nav {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-nav a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        
+        .main-content {
+            padding: 2rem 0;
+        }
+        
+        .workflow-header {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .service-type {
+            background: #eff6ff;
+            color: #2563eb;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        
+        .request-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1rem;
+        }
+        
+        .request-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .meta-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        
+        .meta-value {
+            font-size: 0.9rem;
+            color: #111827;
+            font-weight: 500;
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-in-progress {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .workflow-progress {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .progress-steps {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e5e7eb;
+            z-index: 1;
+        }
+        
+        .step.active:not(:last-child)::after,
+        .step.completed:not(:last-child)::after {
+            background: #059669;
+        }
+        
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .step.pending .step-circle {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .step.active .step-circle {
+            background: #2563eb;
+            color: white;
+            border: 2px solid #2563eb;
+        }
+        
+        .step.completed .step-circle {
+            background: #059669;
+            color: white;
+            border: 2px solid #059669;
+        }
+        
+        .step-label {
+            font-size: 0.875rem;
+            text-align: center;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .step.active .step-label,
+        .step.completed .step-label {
+            color: #111827;
+            font-weight: 600;
+        }
+        
+        .request-details {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .detail-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1.5rem;
+        }
+        
+        .detail-section h3 {
+            color: #374151;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+        
+        .detail-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .detail-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            font-size: 0.875rem;
+            color: #111827;
+            font-weight: 600;
+            text-align: right;
+            flex: 1;
+            margin-left: 1rem;
+        }
+        
+        .actions-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #d1d5db;
+            color: #374151;
+        }
+        
+        .btn-outline:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .director-form-section {
+            background: #fefce8;
+            border: 1px solid #eab308;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .alert-icon {
+            font-size: 1.25rem;
+            margin-right: 0.5rem;
+        }
+        
+        .form-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .form-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 800px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .comments-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .comment-item {
+            background: white;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #2563eb;
+        }
+        
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .comment-time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .comment-text {
+            color: #4b5563;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>Service Request Details</h1>
+        </div>
+    </div>
+    
+    <div class="breadcrumb">
+        <div class="container">
+            <nav class="breadcrumb-nav">
+                <a href="professional-dashboard.html">Professional Dashboard</a> / 
+                <a href="#service-requests">Service Requests</a> / 
+                Director Appointment Request
+            </nav>
+        </div>
+    </div>
+    
+    <div class="container main-content">
+        <div class="workflow-header">
+            <div class="service-type">🏢 Director Appointment</div>
+            <h1 class="request-title">Director Appointment Request - John Doe</h1>
+            
+            <div class="request-meta">
+                <div class="meta-item">
+                    <div class="meta-label">Status</div>
+                    <div class="meta-value">
+                        <span class="status-badge status-in-progress">In Progress</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Priority</div>
+                    <div class="meta-value" style="color: #dc2626; font-weight: 600;">High</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Created</div>
+                    <div class="meta-value">Jan 12, 2024 at 2:30 PM</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Due Date</div>
+                    <div class="meta-value">Jan 19, 2024</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Requesting Director</div>
+                    <div class="meta-value">John Doe (DIN: 12345678)</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Professional</div>
+                    <div class="meta-value">Sarah Wilson (CA, CS)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="workflow-progress">
+            <h2 style="margin-bottom: 1.5rem; color: #374151;">Workflow Progress</h2>
+            
+            <div class="progress-steps">
+                <div class="step completed">
+                    <div class="step-circle">✓</div>
+                    <div class="step-label">Request<br>Submitted</div>
+                </div>
+                <div class="step completed">
+                    <div class="step-circle">✓</div>
+                    <div class="step-label">Documents<br>Uploaded</div>
+                </div>
+                <div class="step active">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Professional<br>Processing</div>
+                </div>
+                <div class="step pending">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Forms<br>Generated</div>
+                </div>
+                <div class="step pending">
+                    <div class="step-circle">5</div>
+                    <div class="step-label">Request<br>Completed</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="director-form-section">
+            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                <span class="alert-icon">📝</span>
+                <strong>Action Required: Complete Director Information Form</strong>
+            </div>
+            <p style="color: #92400e; margin-bottom: 1rem;">
+                The director has uploaded their PAN and Aadhar documents. Please complete the DirectorInfoForm to proceed with form generation.
+            </p>
+            <button class="btn btn-primary" onclick="showDirectorForm()">
+                📝 Complete Director Information Form
+            </button>
+        </div>
+        
+        <div class="request-details">
+            <h2 style="margin-bottom: 1.5rem; color: #374151;">Request Details</h2>
+            
+            <div class="details-grid">
+                <div class="detail-section">
+                    <h3>👤 Director Information</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Full Name</span>
+                        <span class="detail-value">John Doe</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">DIN</span>
+                        <span class="detail-value">12345678</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Email</span>
+                        <span class="detail-value">john.doe@example.com</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Documents Status</span>
+                        <span class="detail-value" style="color: #059669;">✓ Uploaded</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>🏢 Entity Details</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Company Name</span>
+                        <span class="detail-value">Acme Technologies Pvt Ltd</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">CIN</span>
+                        <span class="detail-value">U72900MH2020PTC123456</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Entity Type</span>
+                        <span class="detail-value">Private Limited Company</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>📋 Appointment Details</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Designation</span>
+                        <span class="detail-value">Managing Director</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Category</span>
+                        <span class="detail-value">Promoter</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Appointment Date</span>
+                        <span class="detail-value">Jan 15, 2024</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Change Type</span>
+                        <span class="detail-value">New Appointment</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h3>📄 Required Forms</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">DIR-2</span>
+                        <span class="detail-value" style="color: #d97706;">Pending</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">DIR-8</span>
+                        <span class="detail-value" style="color: #d97706;">Pending</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">MBP-1</span>
+                        <span class="detail-value" style="color: #d97706;">Pending</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions-panel">
+            <h2 style="margin-bottom: 1.5rem; color: #374151;">Actions</h2>
+            <div>
+                <button class="btn btn-primary" onclick="showDirectorForm()">📝 Complete Director Form</button>
+                <button class="btn btn-success">✅ Mark as Completed</button>
+                <button class="btn btn-outline">📄 View Documents</button>
+                <button class="btn btn-outline">💬 Add Comment</button>
+                <button class="btn btn-danger">❌ Reject Request</button>
+            </div>
+        </div>
+        
+        <div class="comments-section">
+            <h3 style="margin-bottom: 1rem; color: #374151;">Activity Timeline</h3>
+            
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">System</span>
+                    <span class="comment-time">Jan 12, 2024 at 3:15 PM</span>
+                </div>
+                <div class="comment-text">
+                    Director has uploaded PAN and Aadhar documents. Task assigned to professional for form completion.
+                </div>
+            </div>
+            
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">Sarah Wilson</span>
+                    <span class="comment-time">Jan 12, 2024 at 2:45 PM</span>
+                </div>
+                <div class="comment-text">
+                    Started processing the director appointment request. Will review documents and complete the director information form.
+                </div>
+            </div>
+            
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">John Doe</span>
+                    <span class="comment-time">Jan 12, 2024 at 2:30 PM</span>
+                </div>
+                <div class="comment-text">
+                    Director appointment request submitted for Acme Technologies Pvt Ltd as Managing Director.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Director Form Modal -->
+    <div id="directorFormModal" class="form-modal-overlay">
+        <div class="form-modal">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
+                <h2 style="color: #374151;">Complete Director Information Form</h2>
+                <button onclick="hideDirectorForm()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+            </div>
+            
+            <form>
+                <div style="background: #e0f2fe; padding: 1rem; border-radius: 6px; margin-bottom: 2rem; border-left: 4px solid #0288d1;">
+                    <p><strong>Director:</strong> John Doe</p>
+                    <p><strong>DIN:</strong> 12345678</p>
+                    <p><strong>Company:</strong> Acme Technologies Pvt Ltd</p>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" value="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Father's Name *</label>
+                        <input type="text" placeholder="Enter father's name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth *</label>
+                        <input type="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Nationality *</label>
+                        <select required>
+                            <option value="">Select nationality</option>
+                            <option value="Indian" selected>Indian</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>PAN Number *</label>
+                        <input type="text" placeholder="ABCDE1234F" pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" value="john.doe@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile Number *</label>
+                        <input type="tel" placeholder="9876543210" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Occupation *</label>
+                        <input type="text" placeholder="Business Professional" required>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label>Residential Address *</label>
+                    <textarea rows="3" placeholder="Enter complete residential address" required></textarea>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>City *</label>
+                        <input type="text" placeholder="Mumbai" required>
+                    </div>
+                    <div class="form-group">
+                        <label>State *</label>
+                        <select required>
+                            <option value="">Select state</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Karnataka">Karnataka</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>PIN Code *</label>
+                        <input type="text" pattern="[0-9]{6}" placeholder="400001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Qualification</label>
+                        <input type="text" placeholder="Graduate / Post Graduate">
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e5e7eb;">
+                    <button type="button" onclick="hideDirectorForm()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-success">💾 Submit & Generate Forms</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function showDirectorForm() {
+            document.getElementById('directorFormModal').style.display = 'flex';
+        }
+        
+        function hideDirectorForm() {
+            document.getElementById('directorFormModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('directorFormModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideDirectorForm();
+            }
+        });
+    </script>
+</body>
+</html>
