@@ -1843,6 +1843,8 @@ const DirectorDashboard: React.FC = () => {
                       showUploader={false}
                       allowDelete={true}
                       onRefresh={refreshDocuments}
+                      currentUserId={user?.username}
+                      currentUserRole="DIRECTORS"
                     />
                   </div>
                 </div>

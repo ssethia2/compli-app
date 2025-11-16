@@ -1336,6 +1336,8 @@ const ProfessionalDashboard: React.FC = () => {
                   allowDelete={true}
                   groupByUser={true}
                   onRefresh={() => {}}
+                  currentUserId={user?.username}
+                  currentUserRole="PROFESSIONALS"
                 />
               </div>
             )}

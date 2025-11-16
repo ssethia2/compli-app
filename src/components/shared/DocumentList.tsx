@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { generateClient } from 'aws-amplify/data';
-import { getUrl } from 'aws-amplify/storage';
-import type { Schema } from '../../../amplify/data/resource';
+import { getDocuments, getDocumentUrl, deleteDocument as deleteDocumentApi, getDocumentUploaderProfiles } from '../../api';
 import './DocumentList.css';
-
-const client = generateClient<Schema>();
 
 interface DocumentListProps {
   entityId?: string;
@@ -15,6 +11,8 @@ interface DocumentListProps {
   onDocumentDeleted?: (documentId: string) => void;
   onRefresh?: () => void;
   groupByUser?: boolean; // New prop for grouping by user
+  currentUserId?: string; // Current user's Cognito username/userId
+  currentUserRole?: 'DIRECTORS' | 'PROFESSIONALS'; // Current user's role
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
@@ -25,7 +23,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
   allowDelete = false,
   onDocumentDeleted,
   onRefresh,
-  groupByUser = false
+  groupByUser = false,
+  currentUserId,
+  currentUserRole
 }) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,52 +34,28 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
   useEffect(() => {
     fetchDocuments();
-  }, [entityId, entityType, serviceRequestId]);
+  }, [entityId, entityType, serviceRequestId, currentUserId, currentUserRole]);
 
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      let filter: any = {};
-      
-      if (serviceRequestId) {
-        filter.serviceRequestId = { eq: serviceRequestId };
-      } else if (entityId && entityType) {
-        filter.and = [
-          { entityId: { eq: entityId } },
-          { entityType: { eq: entityType } }
-        ];
-      }
+      // Build filter based on props
+      const filter = {
+        serviceRequestId,
+        entityId,
+        entityType,
+        userId: currentUserId,
+        role: currentUserRole
+      };
 
-      const result = await client.models.Document.list({ filter });
-      
-      // Sort by upload date (newest first)
-      const sortedDocs = result.data.sort((a, b) => 
-        new Date(b.uploadedAt || '').getTime() - new Date(a.uploadedAt || '').getTime()
-      );
-      
-      setDocuments(sortedDocs);
+      // Call the centralized API
+      const result = await getDocuments(filter);
+      setDocuments(result.data);
 
       // Fetch user profiles for uploaders if showing uploader info or grouping by user
-      if ((showUploader || groupByUser) && sortedDocs.length > 0) {
-        const uniqueUploaders = [...new Set(sortedDocs.map(doc => doc.uploadedBy).filter(Boolean))];
-        const profilePromises = uniqueUploaders.map(async (uploadedBy) => {
-          try {
-            const profiles = await client.models.UserProfile.list({
-              filter: { userId: { eq: uploadedBy } }
-            });
-            const profile = profiles.data.length > 0 ? profiles.data[0] : null;
-            return { userId: uploadedBy, profile };
-          } catch (error) {
-            console.error(`Error fetching profile for ${uploadedBy}:`, error);
-            return { userId: uploadedBy, profile: null };
-          }
-        });
-
-        const profileResults = await Promise.all(profilePromises);
-        const profileMap = new Map();
-        profileResults.forEach(({ userId, profile }) => {
-          profileMap.set(userId, profile);
-        });
+      if ((showUploader || groupByUser) && result.data.length > 0) {
+        const uniqueUploaders = [...new Set(result.data.map((doc: any) => doc.uploadedBy).filter(Boolean))] as string[];
+        const profileMap = await getDocumentUploaderProfiles(uniqueUploaders);
         setUserProfiles(profileMap);
       }
     } catch (error) {
@@ -92,14 +68,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const downloadDocument = async (document: any) => {
     try {
       setDownloadingIds(prev => new Set(prev).add(document.id));
-      
-      const signedUrl = await getUrl({
-        key: document.fileKey,
-        options: {
-          expiresIn: 3600, // 1 hour
-          validateObjectExistence: false // Don't validate object existence for download
-        }
-      });
+
+      const signedUrl = await getDocumentUrl(document.fileKey);
 
       // Create a temporary link and trigger download
       const link = document.createElement('a');
@@ -111,16 +81,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading document:', error);
-      // Try opening the URL directly as fallback
-      try {
-        const fallbackUrl = await getUrl({
-          key: document.fileKey,
-          options: { expiresIn: 3600 }
-        });
-        window.open(fallbackUrl.url.toString(), '_blank');
-      } catch (fallbackError) {
-        alert('Failed to download document. Please try again.');
-      }
+      alert('Failed to download document. Please try again.');
     } finally {
       setDownloadingIds(prev => {
         const newSet = new Set(prev);
@@ -136,15 +97,15 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
 
     try {
-      await client.models.Document.delete({ id: document.id });
-      
+      await deleteDocumentApi(document.id);
+
       // Remove from local state
       setDocuments(prev => prev.filter(doc => doc.id !== document.id));
-      
+
       if (onDocumentDeleted) {
         onDocumentDeleted(document.id);
       }
-      
+
       if (onRefresh) {
         onRefresh();
       }

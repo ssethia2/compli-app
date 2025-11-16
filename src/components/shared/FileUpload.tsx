@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
-import { uploadData } from 'aws-amplify/storage';
-import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import type { Schema } from '../../../amplify/data/resource';
+import { uploadDocument } from '../../api';
 import './FileUpload.css';
-
-const client = generateClient<Schema>();
 
 interface FileUploadProps {
   entityId?: string;
@@ -53,62 +49,31 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return null;
   };
 
-  const generateS3Key = (fileName: string): string => {
-    const timestamp = Date.now();
-    const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    
-    if (serviceRequestId) {
-      return `service-requests/${serviceRequestId}/${timestamp}_${sanitizedName}`;
-    } else if (entityId && entityType) {
-      return `entities/${entityId}/${timestamp}_${sanitizedName}`;
-    } else {
-      // For user documents, use public path since we're using authenticated access
-      return `public/users/${user?.username}/${timestamp}_${sanitizedName}`;
-    }
-  };
-
   const uploadFile = async (file: File): Promise<any> => {
     const validationError = validateFile(file);
     if (validationError) {
       throw new Error(validationError);
     }
 
-    const fileKey = generateS3Key(file.name);
-    
     try {
-      // Upload to S3
-      await uploadData({
-        key: fileKey,
-        data: file,
-        options: {
-          onProgress: ({ transferredBytes, totalBytes }) => {
-            if (totalBytes) {
-              const progress = Math.round((transferredBytes / totalBytes) * 100);
-              setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-            }
-          },
-        },
-      }).result;
+      // Set initial progress
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
-      // Create document record in database
-      const documentData = {
-        fileName: file.name,
+      // Use the centralized API to upload
+      const result = await uploadDocument({
+        file,
         documentName: documentName.trim() || defaultDocumentName || file.name,
-        fileKey: fileKey,
-        fileSize: file.size,
-        mimeType: file.type,
-        uploadedBy: user?.username || '',
-        uploadedAt: new Date().toISOString(),
         documentType,
+        uploadedBy: user?.username || '',
         entityId,
         entityType,
-        serviceRequestId,
-        isPublic: false
-      };
+        serviceRequestId
+      });
 
-      const documentResult = await client.models.Document.create(documentData);
-      
-      return documentResult.data;
+      // Simulate progress completion (since API doesn't expose progress yet)
+      setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+
+      return result.data;
     } catch (error) {
       console.error('Upload failed:', error);
       throw error;
