@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
 import './DirectorInfoForm.css';
 
@@ -80,6 +79,9 @@ interface DirectorInfoFormProps {
   onSubmit: (directorInfo: DirectorInfo) => void;
   serviceRequestId?: string;
   appointmentData?: any;
+  mode: 'professional' | 'appointee'; // NEW: Determines which fields to show
+  taskId?: string; // NEW: Task ID for workflow
+  preselectedCompanies?: Array<{ id: string; name: string; cin: string }>; // NEW: Companies selected by professional (for appointee mode)
 }
 
 const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
@@ -87,17 +89,31 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
   onClose,
   onSubmit,
   serviceRequestId: _serviceRequestId,
-  appointmentData
+  appointmentData,
+  mode,
+  taskId: _taskId,
+  preselectedCompanies = []
 }) => {
-  const { user } = useAuthenticator();
-  
+
+  // DEBUG: Log what we're receiving
+  useEffect(() => {
+    if (isOpen) {
+      console.log('DirectorInfoForm opened with appointmentData:', appointmentData);
+      console.log('ALL KEYS IN appointmentData:', Object.keys(appointmentData || {}));
+      console.log('Director Name:', appointmentData?.directorName);
+      console.log('Director DIN:', appointmentData?.directorDIN, appointmentData?.din);
+      console.log('Director UserId:', appointmentData?.directorUserId);
+      console.log('Entity ID:', appointmentData?.entityId);
+    }
+  }, [isOpen, appointmentData]);
+
   const [formData, setFormData] = useState<DirectorInfo>({
-    fullName: '',
+    fullName: appointmentData?.directorName || '',
     fatherName: '',
     dateOfBirth: '',
     nationality: 'Indian',
     gender: 'MALE',
-    din: '',
+    din: appointmentData?.directorDIN || appointmentData?.din || '',
     pan: '',
     aadhar: '',
     passport: '',
@@ -124,54 +140,166 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
     entityId: appointmentData?.entityId,
     entityType: appointmentData?.entityType || 'COMPANY',
     companyRegistration: appointmentData?.cin || '',
-    nominalCapital: '',
-    paidUpCapital: '',
+    nominalCapital: '', // Will be fetched from entity
+    paidUpCapital: '', // Will be fetched from entity
     otherCompanyInterests: []
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Pre-fill form with existing user profile data
-  useEffect(() => {
-    if (isOpen && user?.username) {
-      fetchUserProfileData();
-    }
-  }, [isOpen, user?.username]);
+  // NEW: State for professional mode - companies for disclosure (just names)
+  const [companyNames, setCompanyNames] = useState<string[]>(['']);
 
-  const fetchUserProfileData = async () => {
+  // NEW: State for appointee mode - companies with disclosure details
+  const [companyDisclosures, setCompanyDisclosures] = useState<Array<{
+    id: string;
+    name: string;
+    cin: string;
+    natureOfInterest?: string;
+    shareholdingPercentage?: number;
+    dateOfInterest?: string;
+  }>>(preselectedCompanies.map(c => ({ ...c, natureOfInterest: '', shareholdingPercentage: undefined, dateOfInterest: '' })));
+
+  // Update form data when appointmentData changes
+  useEffect(() => {
+    if (isOpen && appointmentData) {
+      console.log('Updating form with appointmentData...');
+      setFormData(prev => ({
+        ...prev,
+        fullName: appointmentData?.directorName || prev.fullName,
+        din: appointmentData?.directorDIN || appointmentData?.din || prev.din,
+        appointmentDate: appointmentData?.appointmentDate || prev.appointmentDate,
+        designation: appointmentData?.designation || prev.designation,
+        category: appointmentData?.category || prev.category,
+        companyName: appointmentData?.companyName || prev.companyName,
+        cin: appointmentData?.cinNumber || prev.cin,
+        entityId: appointmentData?.entityId,
+        entityType: appointmentData?.entityType || prev.entityType,
+        companyRegistration: appointmentData?.cin || prev.companyRegistration
+      }));
+    }
+  }, [isOpen, appointmentData]);
+
+
+  // NEW: Initialize company disclosures for appointee mode
+  useEffect(() => {
+    if (isOpen && mode === 'appointee' && preselectedCompanies.length > 0) {
+      setCompanyDisclosures(
+        preselectedCompanies.map(c => ({
+          ...c,
+          natureOfInterest: '',
+          shareholdingPercentage: undefined,
+          dateOfInterest: ''
+        }))
+      );
+    }
+  }, [isOpen, mode, preselectedCompanies]);
+
+  // Pre-fill form with director's profile and entity data
+  useEffect(() => {
+    if (isOpen && appointmentData?.directorUserId) {
+      console.log('Fetching director profile for:', appointmentData.directorUserId);
+      fetchDirectorProfileData();
+    }
+    if (isOpen && appointmentData?.entityId) {
+      console.log('Fetching entity data for:', appointmentData.entityId);
+      fetchEntityData();
+    }
+  }, [isOpen, appointmentData?.directorUserId, appointmentData?.entityId]);
+
+  const fetchDirectorProfileData = async () => {
     try {
+      // Fetch the DIRECTOR's profile, not the professional's
+      const directorUserId = appointmentData?.directorUserId;
+      console.log('fetchDirectorProfileData - directorUserId:', directorUserId);
+
+      if (!directorUserId) {
+        console.log('No directorUserId found, skipping profile fetch');
+        return;
+      }
+
       const userProfile = await client.models.UserProfile.list({
-        filter: {
-          or: [
-            { userId: { eq: user?.username } },
-            { email: { eq: user?.signInDetails?.loginId } }
-          ]
-        }
+        filter: { userId: { eq: directorUserId } }
       });
+
+      console.log('Fetched director profile:', userProfile.data);
 
       if (userProfile.data.length > 0) {
         const profile = userProfile.data[0];
+        console.log('Updating form with profile:', profile);
         setFormData(prev => ({
           ...prev,
+          fullName: profile.displayName || prev.fullName,
           din: profile.din || prev.din,
           email: profile.email || prev.email,
-          fullName: profile.displayName || prev.fullName,
           pan: profile.pan || prev.pan
         }));
+      } else {
+        console.log('No profile found for director userId:', directorUserId);
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching director profile:', error);
     }
   };
+
+  const fetchEntityData = async () => {
+    try {
+      const entityId = appointmentData?.entityId;
+      const entityType = appointmentData?.entityType;
+
+      if (!entityId || !entityType) return;
+
+      if (entityType === 'COMPANY') {
+        const company = await client.models.Company.get({ id: entityId });
+        if (company.data && company.data !== null) {
+          setFormData(prev => ({
+            ...prev,
+            nominalCapital: company.data!.authorizedCapital?.toString() || '',
+            paidUpCapital: company.data!.paidUpCapital?.toString() || ''
+          }));
+        }
+      } else if (entityType === 'LLP') {
+        const llp = await client.models.LLP.get({ id: entityId });
+        if (llp.data && llp.data !== null) {
+          setFormData(prev => ({
+            ...prev,
+            nominalCapital: llp.data!.totalObligationOfContribution?.toString() || '',
+            paidUpCapital: llp.data!.totalObligationOfContribution?.toString() || ''
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching entity data:', error);
+    }
+  };
+
 
   const handleInputChange = (field: keyof DirectorInfo, value: string | boolean | Array<any>) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const validateForm = (): boolean => {
+    // Appointee mode: Only validate company disclosures
+    if (mode === 'appointee') {
+      if (companyDisclosures.length === 0) {
+        setError('No companies to disclose interest for');
+        return false;
+      }
+
+      for (const company of companyDisclosures) {
+        if (!company.natureOfInterest || !company.dateOfInterest) {
+          setError(`Please complete all disclosure fields for ${company.name}`);
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Professional mode: Validate all fields except interest disclosure
     const requiredFields: (keyof DirectorInfo)[] = [
-      'fullName', 'fatherName', 'dateOfBirth', 'din', 'pan', 'email', 
+      'fullName', 'fatherName', 'dateOfBirth', 'din', 'pan', 'email',
       'mobileNumber', 'residentialAddress', 'state', 'pincode',
       'appointmentDate', 'designation', 'occupation'
     ];
@@ -198,6 +326,12 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
       return false;
     }
 
+    const validCompanyNames = companyNames.filter(name => name.trim() !== '');
+    if (validCompanyNames.length === 0) {
+      setError('Please add at least one company for interest disclosure');
+      return false;
+    }
+
     return true;
   };
 
@@ -211,10 +345,27 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
 
     setLoading(true);
     try {
-      onSubmit(formData);
+      if (mode === 'professional') {
+        // Professional mode: Just pass the company names
+        const validCompanyNames = companyNames.filter(name => name.trim() !== '');
+        const companiesForDisclosure = validCompanyNames.map((name, index) => ({
+          id: `company-${Date.now()}-${index}`,
+          name: name.trim()
+        }));
+
+        onSubmit({
+          ...formData,
+          companiesForDisclosure
+        } as any);
+      } else {
+        // Appointee mode: Pass company disclosures
+        onSubmit({
+          companyDisclosures
+        } as any);
+      }
     } catch (error) {
       console.error('Error submitting director info:', error);
-      setError('Failed to submit director information. Please try again.');
+      setError('Failed to submit information. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -231,8 +382,16 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
     <div className="director-info-modal-overlay" onClick={handleClose}>
       <div className="director-info-modal" onClick={(e) => e.stopPropagation()}>
         <div className="director-info-header">
-          <h2>Director Information Form</h2>
-          <p>Please provide the following information for director appointment forms (DIR-2, DIR-8, MBP-1)</p>
+          <h2>
+            {mode === 'professional'
+              ? 'Director Information Form'
+              : 'Interest Disclosure Form'}
+          </h2>
+          <p>
+            {mode === 'professional'
+              ? 'Please provide the following information for director appointment forms (DIR-2, DIR-8, MBP-1)'
+              : 'Please disclose your interest in the following companies'}
+          </p>
           <button className="close-button" onClick={handleClose}>×</button>
         </div>
 
@@ -246,6 +405,9 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Professional mode: Show all form sections except interest disclosure */}
+            {mode === 'professional' && (
+              <>
             {/* Personal Information */}
             <div className="form-section">
               <h3>Personal Information</h3>
@@ -578,125 +740,6 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
             </div>
 
 
-            {/* MBP-1 Interest Disclosure */}
-            <div className="form-section">
-              <h3>Interest Disclosure (MBP-1)</h3>
-              <div className="form-row">
-                <div className="form-group full-width">
-                  <label>Other Company Interests</label>
-                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1rem' }}>
-                    Disclose your interest or concern in other companies, including shareholding details
-                  </p>
-                  {formData.otherCompanyInterests.map((interest, index) => (
-                    <div key={index} style={{ 
-                      border: '1px solid #e5e7eb', 
-                      borderRadius: '6px', 
-                      padding: '1rem', 
-                      marginBottom: '1rem',
-                      backgroundColor: '#f9fafb'
-                    }}>
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label>Company/Firm Name</label>
-                          <input
-                            type="text"
-                            value={interest.companyName}
-                            onChange={(e) => {
-                              const newInterests = [...formData.otherCompanyInterests];
-                              newInterests[index].companyName = e.target.value;
-                              handleInputChange('otherCompanyInterests', newInterests);
-                            }}
-                            placeholder="Company/Firm name"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>Nature of Interest</label>
-                          <input
-                            type="text"
-                            value={interest.natureOfInterest}
-                            onChange={(e) => {
-                              const newInterests = [...formData.otherCompanyInterests];
-                              newInterests[index].natureOfInterest = e.target.value;
-                              handleInputChange('otherCompanyInterests', newInterests);
-                            }}
-                            placeholder="Director, Shareholder, etc."
-                          />
-                        </div>
-                      </div>
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label>Shareholding</label>
-                          <input
-                            type="text"
-                            value={interest.shareholding}
-                            onChange={(e) => {
-                              const newInterests = [...formData.otherCompanyInterests];
-                              newInterests[index].shareholding = e.target.value;
-                              handleInputChange('otherCompanyInterests', newInterests);
-                            }}
-                            placeholder="% or number of shares"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>Date of Interest</label>
-                          <input
-                            type="date"
-                            value={interest.dateOfInterest}
-                            onChange={(e) => {
-                              const newInterests = [...formData.otherCompanyInterests];
-                              newInterests[index].dateOfInterest = e.target.value;
-                              handleInputChange('otherCompanyInterests', newInterests);
-                            }}
-                          />
-                        </div>
-                        <div className="form-group" style={{ display: 'flex', alignItems: 'end' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newInterests = formData.otherCompanyInterests.filter((_, i) => i !== index);
-                              handleInputChange('otherCompanyInterests', newInterests);
-                            }}
-                            style={{
-                              background: '#ef4444',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '0.5rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newInterests = [...formData.otherCompanyInterests, {
-                        companyName: '',
-                        natureOfInterest: '',
-                        shareholding: '',
-                        dateOfInterest: ''
-                      }];
-                      handleInputChange('otherCompanyInterests', newInterests);
-                    }}
-                    style={{
-                      background: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '0.5rem 1rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Add Company Interest
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Declarations */}
             <div className="form-section">
               <h3>Declarations</h3>
@@ -737,12 +780,148 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
               </div>
             </div>
 
+            {/* Professional mode: Company names for interest disclosure */}
+            <div className="form-section">
+              <h3>Companies for Interest Disclosure</h3>
+              <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
+                Enter company/LLP names where the appointee may have an interest. The appointee will provide details later.
+              </p>
+              <div className="form-row">
+                <div className="form-group full-width">
+                  <label>Company/LLP Names *</label>
+                  {companyNames.map((name, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => {
+                          const newNames = [...companyNames];
+                          newNames[index] = e.target.value;
+                          setCompanyNames(newNames);
+                        }}
+                        placeholder="Enter company/LLP name"
+                        style={{ flex: 1 }}
+                      />
+                      {companyNames.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setCompanyNames(companyNames.filter((_, i) => i !== index))}
+                          style={{
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.5rem 1rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCompanyNames([...companyNames, ''])}
+                    style={{
+                      background: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '0.5rem 1rem',
+                      cursor: 'pointer',
+                      marginTop: '0.5rem'
+                    }}
+                  >
+                    + Add Another Company
+                  </button>
+                </div>
+              </div>
+            </div>
+              </>
+            )}
+
+            {/* Appointee mode: Interest disclosure for preselected companies */}
+            {mode === 'appointee' && (
+              <div className="form-section">
+                <h3>Interest Disclosure (MBP-1)</h3>
+                <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '1rem' }}>
+                  Please provide details about your interest in the following companies
+                </p>
+                {companyDisclosures.map((company, index) => (
+                    <div key={company.id} style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      padding: '1rem',
+                      marginBottom: '1rem',
+                      backgroundColor: '#f9fafb'
+                    }}>
+                      <h4 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151' }}>
+                        {company.name} ({company.cin})
+                      </h4>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Nature of Interest *</label>
+                          <input
+                            type="text"
+                            value={company.natureOfInterest || ''}
+                            onChange={(e) => {
+                              const updated = [...companyDisclosures];
+                              updated[index].natureOfInterest = e.target.value;
+                              setCompanyDisclosures(updated);
+                            }}
+                            placeholder="Director, Shareholder, Partner, etc."
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Shareholding Percentage</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={company.shareholdingPercentage || ''}
+                            onChange={(e) => {
+                              const updated = [...companyDisclosures];
+                              updated[index].shareholdingPercentage = e.target.value ? parseFloat(e.target.value) : undefined;
+                              setCompanyDisclosures(updated);
+                            }}
+                            placeholder="e.g., 25.5"
+                          />
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Date of Interest *</label>
+                          <input
+                            type="date"
+                            value={company.dateOfInterest || ''}
+                            onChange={(e) => {
+                              const updated = [...companyDisclosures];
+                              updated[index].dateOfInterest = e.target.value;
+                              setCompanyDisclosures(updated);
+                            }}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+
             <div className="form-actions">
               <button type="button" onClick={handleClose} disabled={loading}>
                 Cancel
               </button>
               <button type="submit" disabled={loading}>
-                {loading ? 'Submitting...' : 'Submit Information for Form Preparation'}
+                {loading
+                  ? 'Submitting...'
+                  : mode === 'professional'
+                    ? 'Submit Information & Send to Appointee'
+                    : 'Submit Interest Disclosure'}
               </button>
             </div>
           </form>

@@ -149,7 +149,8 @@ export const getDirectorEntities = async (userId: string) => {
 
   const entities = {
     companies: [] as any[],
-    llps: [] as any[]
+    llps: [] as any[],
+    associations: associations.data
   };
 
   for (const association of associations.data) {
@@ -242,4 +243,117 @@ export const getEntityProfessionals = async (entityId: string, entityType: 'COMP
   });
 
   return assignments.data;
+};
+
+/**
+ * Get all documents for entities managed by a professional
+ * This includes documents from all directors associated with the professional's entities
+ *
+ * OPTIMIZED: Uses AppSync directly instead of Lambda for faster queries
+ */
+export const getProfessionalDocuments = async (professionalUserId: string) => {
+  try {
+    // 1. Get entities assigned to professional
+    const assignments = await client.models.ProfessionalAssignment.list({
+      filter: {
+        and: [
+          { professionalId: { eq: professionalUserId } },
+          { isActive: { eq: true } }
+        ]
+      }
+    });
+
+    const entityIds = assignments.data.map(a => a.entityId).filter(Boolean) as string[];
+
+    if (entityIds.length === 0) {
+      return { documents: [], totalCount: 0 };
+    }
+
+    // 2. Get all directors associated with these entities (in parallel)
+    const directorQueries = entityIds.map(entityId =>
+      client.models.DirectorAssociation.list({
+        filter: { entityId: { eq: entityId } }
+      })
+    );
+
+    const directorResults = await Promise.all(directorQueries);
+    const directorUserIds = directorResults
+      .flatMap(result => result.data)
+      .map(item => item.userId)
+      .filter(Boolean) as string[];
+
+    if (directorUserIds.length === 0) {
+      return { documents: [], totalCount: 0 };
+    }
+
+    // 3. Get documents for all directors (in parallel)
+    const documentQueries = directorUserIds.map(userId =>
+      client.models.Document.list({
+        filter: { uploadedBy: { eq: userId } }
+      })
+    );
+
+    const documentResults = await Promise.all(documentQueries);
+    const documents = documentResults.flatMap(result => result.data);
+
+    return {
+      documents,
+      totalCount: documents.length
+    };
+
+  } catch (error) {
+    console.error('Error fetching professional documents:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get all documents for a specific user
+ */
+export const getUserDocuments = async (userId: string) => {
+  const result = await client.models.Document.list({
+    filter: { uploadedBy: { eq: userId } }
+  });
+
+  return result.data;
+};
+
+/**
+ * Get all tasks for a user
+ */
+export const getUserTasks = async (userId: string, status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED') => {
+  const filter = status
+    ? {
+        and: [
+          { assignedTo: { eq: userId } },
+          { status: { eq: status } }
+        ]
+      }
+    : { assignedTo: { eq: userId } };
+
+  const result = await client.models.Task.list({ filter });
+  return result.data;
+};
+
+/**
+ * Get all service requests for a user (director or professional)
+ */
+export const getUserServiceRequests = async (
+  userId: string,
+  role: 'director' | 'professional',
+  status?: 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'COMPLETED'
+) => {
+  const filterKey = role === 'director' ? 'directorId' : 'processedBy';
+
+  const filter = status
+    ? {
+        and: [
+          { [filterKey]: { eq: userId } },
+          { status: { eq: status } }
+        ]
+      }
+    : { [filterKey]: { eq: userId } };
+
+  const result = await client.models.ServiceRequest.list({ filter });
+  return result.data;
 };

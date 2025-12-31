@@ -1,4 +1,6 @@
 import { getUrl } from 'aws-amplify/storage';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { getSignatureUrl as checkSignatureAccess } from '../api/lambda';
 
 export interface SignatureData {
   imageUrl: string;
@@ -19,6 +21,23 @@ export const getSignatureForPDF = async (signatureKey: string): Promise<Signatur
   }
 
   try {
+    // SECURITY: Check access with backend first
+    const session = await fetchAuthSession();
+    const userId = session.userSub;
+
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+
+    const accessCheck = await checkSignatureAccess({
+      signatureKey,
+      requestingUserId: userId
+    });
+
+    if (!accessCheck.success || !accessCheck.allowed) {
+      throw new Error('Access denied to signature');
+    }
+
     // Get signed URL from S3
     const urlResult = await getUrl({
       key: signatureKey,
@@ -153,13 +172,30 @@ export const prepareSignatureForJsPDF = async (
  */
 export const validateSignature = async (signatureKey: string): Promise<boolean> => {
   if (!signatureKey) return false;
-  
+
   try {
+    // SECURITY: Check access with backend first
+    const session = await fetchAuthSession();
+    const userId = session.userSub;
+
+    if (!userId) {
+      return false;
+    }
+
+    const accessCheck = await checkSignatureAccess({
+      signatureKey,
+      requestingUserId: userId
+    });
+
+    if (!accessCheck.success || !accessCheck.allowed) {
+      return false;
+    }
+
     const result = await getUrl({
       key: signatureKey,
       options: { expiresIn: 300 } // 5 minutes, just for validation
     });
-    
+
     // Try to fetch the image
     const response = await fetch(result.url.toString());
     return response.ok;

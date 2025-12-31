@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import type { Schema } from '../../../amplify/data/resource';
+import { submitDirectorAppointment, submitDirectorResignation, submitInterestDisclosureByAppointee } from '../../api/lambda';
 import NameReservationForm from './NameReservationForm';
 import FileUpload from '../shared/FileUpload';
 import DocumentList from '../shared/DocumentList';
@@ -10,6 +11,7 @@ import ESignatureModal from '../shared/ESignatureModal';
 import SignatureDisplay from '../shared/SignatureDisplay';
 import PendingTasks from '../shared/PendingTasks';
 import DirectorDocumentUpload from './DirectorDocumentUpload';
+import DirectorInfoForm from './DirectorInfoForm';
 import './DirectorDashboard.css';
 
 const client = generateClient<Schema>();
@@ -40,7 +42,8 @@ const DirectorDashboard: React.FC = () => {
     din: '',
     resignationDate: '',
     reason: '',
-    authorizedSignatoryDin: ''
+    entityId: '',
+    entityType: '' as 'COMPANY' | 'LLP' | ''
   });
   const [directorKycData, setDirectorKycData] = useState({
     din: '',
@@ -54,6 +57,9 @@ const DirectorDashboard: React.FC = () => {
   const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
   const [showESignModal, setShowESignModal] = useState(false);
   const [showDirectorInfoForm, setShowDirectorInfoForm] = useState(false);
+  const [showInterestDisclosureForm, setShowInterestDisclosureForm] = useState(false);
+  const [interestDisclosureData, setInterestDisclosureData] = useState<any>(null);
+  const [currentInterestDisclosureTaskId, setCurrentInterestDisclosureTaskId] = useState<string>('');
   const [directorInfoData, setDirectorInfoData] = useState<any>(null);
   const [profileRefreshTrigger, setProfileRefreshTrigger] = useState(0);
   const [currentDirectorInfoTaskId, setCurrentDirectorInfoTaskId] = useState<string | null>(null);
@@ -187,9 +193,7 @@ const DirectorDashboard: React.FC = () => {
                 associationType: 'DIRECTOR',
                 din: association.din,
                 appointmentDate: appointmentData.appointmentDate || new Date().toISOString(),
-                isActive: false, // Not active until appointment is confirmed
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                isActive: false // Not active until appointment is confirmed
               });
               console.log('Created DirectorAssociation for claimed DIN (pending confirmation)');
 
@@ -198,12 +202,9 @@ const DirectorDashboard: React.FC = () => {
                 try {
                   await client.models.ProfessionalAssignment.create({
                     professionalId: assignedProfessionalId,
-                    directorId: user.username,
                     entityId: association.entityId,
                     entityType: association.entityType as 'COMPANY' | 'LLP',
-                    isActive: true,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    isActive: true
                   });
                   console.log('Associated director to professional:', assignedProfessionalId);
                 } catch (error) {
@@ -211,7 +212,7 @@ const DirectorDashboard: React.FC = () => {
                 }
               }
 
-              // Create the document upload task
+              // Create the document upload task with complete director information
               await client.models.Task.create({
                 assignedTo: user.username,
                 taskType: 'DOCUMENT_UPLOAD',
@@ -225,9 +226,23 @@ const DirectorDashboard: React.FC = () => {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 metadata: JSON.stringify({
-                  appointmentData: appointmentData,
+                  appointmentData: {
+                    ...appointmentData,
+                    // Director being appointed (the one auto-claiming DIN)
+                    directorName: userProfile.displayName || 'Name Not Available',
+                    directorDIN: association.din,
+                    din: association.din,
+                    directorUserId: user.username,
+                    // Authorizer info should already be in appointmentData from requestContext
+                    // but if not, mark as auto-claimed
+                    authorizerDIN: appointmentData.authorizerDIN || 'AUTO_CLAIM',
+                    authorizerName: appointmentData.authorizerName || 'Auto-claimed',
+                    authorizerEmail: appointmentData.authorizerEmail || user.signInDetails?.loginId,
+                    authorizerUserId: appointmentData.authorizerUserId
+                  },
                   taskType: 'director-document-upload',
-                  din: association.din
+                  din: association.din,
+                  assignedProfessionalId: assignedProfessionalId
                 })
               });
               console.log('Created document upload task for new director');
@@ -249,19 +264,56 @@ const DirectorDashboard: React.FC = () => {
 
   // No longer needed - DirectorInfoForm now handled by professionals
 
-  // Function to handle director document upload task from PendingTasks
+  // Function to handle director tasks from PendingTasks
   const handleDirectorDocumentTask = (taskData: any) => {
-    setCurrentDirectorInfoTaskId(taskData.taskId);
-    setDirectorInfoData({
-      serviceRequestId: taskData.serviceRequestId,
-      ...taskData.appointmentData
-    });
-    setShowDirectorInfoForm(true);
+    console.log('handleDirectorDocumentTask called with:', taskData);
+
+    // Check if this is an interest disclosure task
+    if (taskData.preselectedCompanies) {
+      // Interest disclosure task
+      console.log('Opening interest disclosure form');
+      setCurrentInterestDisclosureTaskId(taskData.taskId);
+      setInterestDisclosureData(taskData);
+      setShowInterestDisclosureForm(true);
+    } else {
+      // Document upload task
+      console.log('Opening document upload form');
+      console.log('Task ID:', taskData.taskId);
+      console.log('Appointment data:', taskData.appointmentData);
+
+      setCurrentDirectorInfoTaskId(taskData.taskId);
+      setDirectorInfoData({
+        serviceRequestId: taskData.serviceRequestId,
+        ...taskData.appointmentData
+      });
+      setShowDirectorInfoForm(true);
+    }
   };
 
-  // This function is no longer needed as DirectorInfoForm is now handled by professionals
+  // Function to handle interest disclosure submission
+  const handleInterestDisclosureSubmit = async (formData: any) => {
+    try {
+      console.log('Submitting interest disclosure:', formData);
 
-  
+      await submitInterestDisclosureByAppointee({
+        taskId: currentInterestDisclosureTaskId,
+        interestDisclosure: {
+          companies: formData.companyDisclosures
+        },
+        appointeeUserId: user?.username || ''
+      });
+
+      alert('Interest disclosure submitted successfully! The professional will now generate the appointment forms.');
+      setShowInterestDisclosureForm(false);
+      setInterestDisclosureData(null);
+      setCurrentInterestDisclosureTaskId('');
+    } catch (error) {
+      console.error('Error submitting interest disclosure:', error);
+      alert('Failed to submit interest disclosure. Please try again.');
+    }
+  };
+
+
   // Store professional lookup map for associations display
   const [professionalLookup, setProfessionalLookup] = useState<Map<string, any>>(new Map());
   
@@ -527,18 +579,6 @@ const DirectorDashboard: React.FC = () => {
 
   // Function to check if director exists by email
 
-  // Function to check if director exists by DIN
-  const checkDirectorByDIN = async (din: string) => {
-    try {
-      const existingDirector = await client.models.UserProfile.list({
-        filter: { din: { eq: din } }
-      });
-      return existingDirector.data.length > 0 ? existingDirector.data[0] : null;
-    } catch (error) {
-      console.error('Error checking if director exists by DIN:', error);
-      return null;
-    }
-  };
 
   // Function to validate director appointment form
   const validateDirectorAppointment = async () => {
@@ -551,50 +591,6 @@ const DirectorDashboard: React.FC = () => {
     return true;
   };
 
-  // Function to create task for professional to associate DIN with email
-  const createDINAssociationTask = async (din: string, entityInfo: any, appointmentData: any) => {
-    try {
-      // Find professionals assigned to this entity
-      const professionalAssignments = await client.models.ProfessionalAssignment.list({
-        filter: {
-          and: [
-            { entityId: { eq: entityInfo.id } },
-            { entityType: { eq: entityInfo.type } },
-            { isActive: { eq: true } }
-          ]
-        }
-      });
-
-      // Create tasks for each assigned professional
-      for (const assignment of professionalAssignments.data) {
-        await client.models.Task.create({
-          assignedTo: assignment.professionalId,
-          assignedBy: user?.username,
-          taskType: 'INFORMATION_UPDATE',
-          title: 'Associate DIN with Email for New Director',
-          description: `A director appointment request has been submitted for DIN ${din} at ${entityInfo.name}. Please associate this DIN with the director's email address so they can join the platform.`,
-          priority: 'MEDIUM',
-          status: 'PENDING',
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-          relatedEntityId: entityInfo.id,
-          relatedEntityType: entityInfo.type,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          metadata: JSON.stringify({
-            directorDIN: din,
-            entityName: entityInfo.name,
-            entityIdentifier: entityInfo.identifier,
-            requestType: 'din-email-association',
-            appointmentData: appointmentData
-          })
-        });
-      }
-
-      console.log(`Created DIN association tasks for DIN ${din} at ${entityInfo.name}`);
-    } catch (error) {
-      console.error('Error creating DIN association task:', error);
-    }
-  };
   
   return (
     <div className="director-dashboard">
@@ -693,7 +689,7 @@ const DirectorDashboard: React.FC = () => {
                     <div className="profile-row">
                       <div className="profile-field">
                         <label>Name:</label>
-                        <span>{userProfile?.displayName || userProfile?.email?.split('@')[0] || 'Not specified'}</span>
+                        <span>{userProfile?.displayName || 'Not specified'}</span>
                       </div>
                       <div className="profile-field">
                         <label>Email:</label>
@@ -1184,7 +1180,7 @@ const DirectorDashboard: React.FC = () => {
                 <div className="director-appointment-form">
                   <form onSubmit={async (e) => {
                     e.preventDefault();
-                    
+
                     // Validate form before submission
                     const isValid = await validateDirectorAppointment();
                     if (!isValid) {
@@ -1192,9 +1188,7 @@ const DirectorDashboard: React.FC = () => {
                     }
 
                     try {
-                      // Get director and entity information
-                      const director = await checkDirectorByDIN(directorAppointmentData.din);
-                      const selectedEntity = directorAppointmentData.selectedEntityType === 'COMPANY' 
+                      const selectedEntity = directorAppointmentData.selectedEntityType === 'COMPANY'
                         ? companies.find(c => c.id === directorAppointmentData.selectedEntityId)
                         : llps.find(l => l.id === directorAppointmentData.selectedEntityId);
 
@@ -1203,190 +1197,23 @@ const DirectorDashboard: React.FC = () => {
                         return;
                       }
 
-                      // Prepare entity info for task creation
-                      const entityInfo = {
-                        id: selectedEntity.id,
-                        type: directorAppointmentData.selectedEntityType,
-                        name: selectedEntity.companyName || selectedEntity.llpName,
-                        identifier: selectedEntity.cinNumber || selectedEntity.llpIN
-                      };
-
-                      // If director doesn't exist, prompt for DIN-email association
-                      if (!director) {
-                        // First create the service request, then prompt for association
-                        await client.models.ServiceRequest.create({
-                          directorId: user?.username || '',
-                          serviceType: 'DIRECTOR_APPOINTMENT',
-                          requestData: JSON.stringify({
-                            din: directorAppointmentData.din,
-                            directorDIN: directorAppointmentData.din,
-                            appointmentDate: directorAppointmentData.appointmentDate,
-                            category: directorAppointmentData.category,
-                            designation: directorAppointmentData.designation,
-                            directorName: 'New Director (Not on platform)',
-                            directorEmail: 'To be provided via association',
-                            directorExists: false,
-                            companyName: entityInfo.name,
-                            entityName: entityInfo.name,
-                            cinNumber: entityInfo.identifier,
-                            entityIdentifier: entityInfo.identifier,
-                            entityId: entityInfo.id,
-                            entityType: entityInfo.type,
-                            authorizerDIN: userProfile?.din,
-                            authorizerName: userProfile?.displayName || userProfile?.email,
-                            authorizerEmail: userProfile?.email
-                          }),
-                          status: 'PENDING',
-                          priority: 'MEDIUM',
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        });
-
-                        // Reset form
-                        setDirectorAppointmentData({
-                          din: '',
-                          appointmentDate: '',
-                          category: 'PROMOTER',
-                          designation: 'CHAIRMAN',
-                          selectedEntityId: '',
-                          selectedEntityType: ''
-                        });
-
-                        // Create task for professionals to associate DIN with email
-                        await createDINAssociationTask(directorAppointmentData.din, entityInfo, directorAppointmentData);
-                        
-                        alert('Director appointment request submitted! A task has been created for professionals to associate this DIN with the director\'s email address.');
-                        setActiveTab('services');
-                        return; // Exit early since we handled everything
-                      }
-
-                      // Prepare enhanced request data
-                      const requestData = {
+                      const result = await submitDirectorAppointment({
                         din: directorAppointmentData.din,
-                        directorDIN: directorAppointmentData.din,
                         appointmentDate: directorAppointmentData.appointmentDate,
-                        category: directorAppointmentData.category,
                         designation: directorAppointmentData.designation,
-                        directorName: director?.displayName || director?.email || 'New Director (Not on platform)',
-                        directorEmail: director?.email || 'To be provided',
-                        directorExists: !!director,
-                        companyName: entityInfo.name,
-                        entityName: entityInfo.name,
-                        cinNumber: entityInfo.identifier,
-                        entityIdentifier: entityInfo.identifier,
-                        entityId: entityInfo.id,
-                        entityType: entityInfo.type,
+                        category: directorAppointmentData.category,
+                        entityId: selectedEntity.id,
+                        entityType: directorAppointmentData.selectedEntityType as 'COMPANY' | 'LLP',
+                        entityName: selectedEntity.companyName || selectedEntity.llpName,
+                        entityIdentifier: selectedEntity.cinNumber || selectedEntity.llpIN,
+                        authorizerUserId: user?.username || '',
                         authorizerDIN: userProfile?.din,
-                        authorizerName: userProfile?.displayName || userProfile?.email,
+                        authorizerName: userProfile?.displayName,
                         authorizerEmail: userProfile?.email
-                      };
-
-                      const result = await client.models.ServiceRequest.create({
-                        directorId: user?.username || '',
-                        serviceType: 'DIRECTOR_APPOINTMENT',
-                        requestData: JSON.stringify(requestData),
-                        status: 'PENDING',
-                        priority: 'MEDIUM',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                      });
-                      
-                      console.log('Director appointment request created:', result);
-                      
-                      // Find the professional associated with the entity to assign the director to them
-                      let assignedProfessionalId = null;
-                      try {
-                        const professionalAssignments = await client.models.ProfessionalAssignment.list({
-                          filter: {
-                            and: [
-                              { entityId: { eq: entityInfo.id } },
-                              { entityType: { eq: entityInfo.type } },
-                              { isActive: { eq: true } }
-                            ]
-                          }
-                        });
-
-                        if (professionalAssignments.data.length > 0) {
-                          assignedProfessionalId = professionalAssignments.data[0].professionalId;
-                          console.log('Found existing professional assignment:', assignedProfessionalId);
-                        } else {
-                          console.warn('No professional assignment found for this entity');
-                        }
-                      } catch (error) {
-                        console.error('Error finding professional assignment:', error);
-                      }
-                      
-                      // Create task for the appointed director to upload required documents
-                      await client.models.Task.create({
-                        assignedTo: director.userId,
-                        assignedBy: user?.username,
-                        taskType: 'DOCUMENT_UPLOAD',
-                        title: 'Upload Documents for Director Appointment',
-                        description: `You have been appointed as a director at ${entityInfo.name}. Please upload PAN, Aadhar, and passport (if foreign national) in the My Documents tab, and upload your e-signature on the Director Dashboard tab. Then complete this task. The professional will then download your documents and complete your information form.`,
-                        priority: 'HIGH',
-                        status: 'PENDING',
-                        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-                        relatedEntityId: entityInfo.id,
-                        relatedEntityType: entityInfo.type as 'COMPANY' | 'LLP',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        metadata: JSON.stringify({
-                          serviceRequestId: result.data?.id,
-                          appointmentData: {
-                            appointmentDate: directorAppointmentData.appointmentDate,
-                            designation: directorAppointmentData.designation,
-                            category: directorAppointmentData.category,
-                            companyName: entityInfo.name,
-                            cin: entityInfo.identifier,
-                            entityId: entityInfo.id,
-                            entityType: directorAppointmentData.selectedEntityType
-                          },
-                          taskType: 'director-document-upload',
-                          din: directorAppointmentData.din,
-                          requiredForms: ['DIR-2', 'DIR-8', 'MBP-1'],
-                          assignedProfessionalId: assignedProfessionalId
-                        })
                       });
 
-                      // Create DirectorAssociation to link the new director to the entity
-                      try {
-                        await client.models.DirectorAssociation.create({
-                          userId: director.userId,
-                          entityId: entityInfo.id,
-                          entityType: entityInfo.type as 'COMPANY' | 'LLP',
-                          associationType: 'DIRECTOR',
-                          din: directorAppointmentData.din,
-                          appointmentDate: directorAppointmentData.appointmentDate,
-                          isActive: false, // Not active until appointment is confirmed
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString()
-                        });
-                        console.log('Created DirectorAssociation for new director (pending confirmation)');
-                      } catch (error) {
-                        console.error('Error creating DirectorAssociation:', error);
-                        // Don't fail the entire process if association creation fails
-                      }
+                      alert(result.message);
 
-                      // Associate director to professional if professional exists
-                      if (assignedProfessionalId) {
-                        try {
-                          await client.models.ProfessionalAssignment.create({
-                            professionalId: assignedProfessionalId,
-                            directorId: director.userId,
-                            entityId: entityInfo.id,
-                            entityType: entityInfo.type as 'COMPANY' | 'LLP',
-                            isActive: true,
-                            createdAt: new Date().toISOString(),
-                            updatedAt: new Date().toISOString()
-                          });
-                          console.log('Associated director to professional:', assignedProfessionalId);
-                        } catch (error) {
-                          console.error('Error creating professional-director assignment:', error);
-                        }
-                      }
-
-                      alert(`Director appointment request submitted! ${director.displayName || director.email} has been notified to complete their director information.`);
-                      
                       // Reset form
                       setDirectorAppointmentData({
                         din: '',
@@ -1396,6 +1223,8 @@ const DirectorDashboard: React.FC = () => {
                         selectedEntityId: '',
                         selectedEntityType: ''
                       });
+
+                      setActiveTab('services');
                     } catch (error) {
                       console.error('Error submitting appointment request:', error);
                       alert('Error submitting request. Please try again.');
@@ -1548,23 +1377,30 @@ const DirectorDashboard: React.FC = () => {
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     try {
-                      const result = await client.models.ServiceRequest.create({
-                        directorId: user?.username || '',
-                        serviceType: 'DIRECTOR_RESIGNATION',
-                        requestData: JSON.stringify(directorResignationData),
-                        status: 'PENDING',
-                        priority: 'HIGH',
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
+                      if (!directorResignationData.entityId || !directorResignationData.entityType) {
+                        alert('Please select a company/LLP to resign from.');
+                        return;
+                      }
+
+                      const result = await submitDirectorResignation({
+                        din: directorResignationData.din,
+                        entityId: directorResignationData.entityId,
+                        entityType: directorResignationData.entityType as 'COMPANY' | 'LLP',
+                        resignationDate: directorResignationData.resignationDate,
+                        reason: directorResignationData.reason,
+                        directorUserId: user?.username || ''
                       });
+
                       console.log('Director resignation request created:', result);
-                      alert('Director resignation request submitted successfully!');
+                      alert(result.message || 'Director resignation request submitted successfully!');
+
                       // Reset form
                       setDirectorResignationData({
                         din: '',
                         resignationDate: '',
                         reason: '',
-                        authorizedSignatoryDin: ''
+                        entityId: '',
+                        entityType: ''
                       });
                       setActiveTab('services');
                     } catch (error) {
@@ -1572,6 +1408,38 @@ const DirectorDashboard: React.FC = () => {
                       alert('Error submitting request. Please try again.');
                     }
                   }}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="resignationEntity">Resigning From (Company/LLP) *</label>
+                        <select
+                          id="resignationEntity"
+                          name="resignationEntity"
+                          value={`${directorResignationData.entityId}|${directorResignationData.entityType}`}
+                          onChange={(e) => {
+                            const [entityId, entityType] = e.target.value.split('|');
+                            setDirectorResignationData({
+                              ...directorResignationData,
+                              entityId,
+                              entityType: entityType as 'COMPANY' | 'LLP'
+                            });
+                          }}
+                          required
+                        >
+                          <option value="|">Select Company/LLP</option>
+                          {companies.map((company) => (
+                            <option key={company.id} value={`${company.id}|COMPANY`}>
+                              {company.companyName} ({company.cinNumber})
+                            </option>
+                          ))}
+                          {llps.map((llp) => (
+                            <option key={llp.id} value={`${llp.id}|LLP`}>
+                              {llp.llpName} ({llp.llpIN})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="form-row">
                       <div className="form-group">
                         <label htmlFor="resignationDin">DIN of Resigning Director *</label>
@@ -1590,7 +1458,7 @@ const DirectorDashboard: React.FC = () => {
                           title="DIN should be 8 digits"
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <label htmlFor="resignationDate">Date of Resignation *</label>
                         <input
@@ -1625,27 +1493,7 @@ const DirectorDashboard: React.FC = () => {
                         />
                       </div>
                     </div>
-                    
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label htmlFor="resignationAuthorizedSignatoryDin">DIN of Director Authorized to Sign *</label>
-                        <input
-                          type="text"
-                          id="resignationAuthorizedSignatoryDin"
-                          name="resignationAuthorizedSignatoryDin"
-                          value={directorResignationData.authorizedSignatoryDin}
-                          onChange={(e) => setDirectorResignationData({
-                            ...directorResignationData,
-                            authorizedSignatoryDin: e.target.value
-                          })}
-                          required
-                          placeholder="Enter authorizing director's DIN"
-                          pattern="[0-9]{8}"
-                          title="DIN should be 8 digits"
-                        />
-                      </div>
-                    </div>
-                    
+
                     <div className="form-actions">
                       <button type="button" className="cancel-button" onClick={() => setActiveTab('services')}>
                         Cancel
@@ -1879,7 +1727,21 @@ const DirectorDashboard: React.FC = () => {
         taskId={currentDirectorInfoTaskId || ''}
         appointmentData={directorInfoData}
       />
-      
+
+      <DirectorInfoForm
+        isOpen={showInterestDisclosureForm}
+        onClose={() => {
+          setShowInterestDisclosureForm(false);
+          setInterestDisclosureData(null);
+          setCurrentInterestDisclosureTaskId('');
+        }}
+        onSubmit={handleInterestDisclosureSubmit}
+        appointmentData={null}
+        mode="appointee"
+        taskId={currentInterestDisclosureTaskId}
+        preselectedCompanies={interestDisclosureData?.preselectedCompanies || []}
+      />
+
     </div>
   );
 };

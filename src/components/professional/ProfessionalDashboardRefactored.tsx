@@ -5,7 +5,7 @@ import { useAuthenticator } from '@aws-amplify/ui-react';
 import { getProfessionalEntities } from '../../api';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
-import { CompaniesTab, LLPsTab, DocumentsTab, PendingTasksTab } from './tabs';
+import { CompaniesTab, LLPsTab, DocumentsTab, PendingTasksTab, ServiceRequestsTab } from './tabs';
 import ServiceModal from './ServiceModal';
 import DirectorInfoForm from '../director/DirectorInfoForm';
 import CompanyForm from './CompanyForm';
@@ -13,9 +13,6 @@ import LLPForm from './LLPForm';
 import './ProfessionalDashboard.css';
 
 const client = generateClient<Schema>();
-
-// Note: ServiceRequestsTab is kept inline as it's complex - could be extracted later
-// Copy from ProfessionalDashboard.tsx lines 178-600 if needed
 
 const ProfessionalDashboardRefactored: React.FC = () => {
   const { user } = useAuthenticator();
@@ -34,7 +31,6 @@ const ProfessionalDashboardRefactored: React.FC = () => {
   const [formGenerationTasks, setFormGenerationTasks] = useState<any[]>([]);
   const [showDirectorInfoForm, setShowDirectorInfoForm] = useState(false);
   const [directorInfoFormData, setDirectorInfoFormData] = useState<any>(null);
-  const [currentDirectorInfoTaskId, setCurrentDirectorInfoTaskId] = useState<string | null>(null);
 
   // Modal state
   const [serviceModal, setServiceModal] = useState<{
@@ -101,7 +97,6 @@ const ProfessionalDashboardRefactored: React.FC = () => {
   };
 
   const handleDirectorInfoFormTask = (taskData: any) => {
-    setCurrentDirectorInfoTaskId(taskData.taskId);
     setDirectorInfoFormData(taskData.appointmentData);
     setShowDirectorInfoForm(true);
   };
@@ -246,13 +241,12 @@ const ProfessionalDashboardRefactored: React.FC = () => {
           )}
 
           {activeTab === 'service-requests' && (
-            <div>
-              <h3>Service Requests Tab</h3>
-              <p>
-                Note: ServiceRequestsTab component is still in the original file.
-                Copy from ProfessionalDashboard.tsx lines 178-600 to extract it here.
-              </p>
-            </div>
+            <ServiceRequestsTab
+              onDirectorInfoFormOpen={(_taskId, appointmentData) => {
+                setDirectorInfoFormData(appointmentData);
+                setShowDirectorInfoForm(true);
+              }}
+            />
           )}
 
           {activeTab === 'pending-tasks' && (
@@ -275,35 +269,31 @@ const ProfessionalDashboardRefactored: React.FC = () => {
       </div>
 
       {/* Service Modal */}
-      {serviceModal.isOpen && (
+      {serviceModal.isOpen && serviceModal.entity && (
         <ServiceModal
+          isOpen={serviceModal.isOpen}
           entity={serviceModal.entity}
           mode={serviceModal.mode}
           onClose={() => setServiceModal({ isOpen: false, entity: null, mode: 'view' })}
-          onUpdate={fetchData}
         />
       )}
 
       {/* Director Info Form Modal */}
       {showDirectorInfoForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <DirectorInfoForm
-              appointmentData={directorInfoFormData}
-              taskId={currentDirectorInfoTaskId}
-              onComplete={() => {
-                setShowDirectorInfoForm(false);
-                setDirectorInfoFormData(null);
-                setCurrentDirectorInfoTaskId(null);
-              }}
-              onCancel={() => {
-                setShowDirectorInfoForm(false);
-                setDirectorInfoFormData(null);
-                setCurrentDirectorInfoTaskId(null);
-              }}
-            />
-          </div>
-        </div>
+        <DirectorInfoForm
+          isOpen={showDirectorInfoForm}
+          appointmentData={directorInfoFormData}
+          onClose={() => {
+            setShowDirectorInfoForm(false);
+            setDirectorInfoFormData(null);
+          }}
+          onSubmit={(directorInfo) => {
+            console.log('Director info submitted:', directorInfo);
+            setShowDirectorInfoForm(false);
+            setDirectorInfoFormData(null);
+          }}
+          mode="professional"
+        />
       )}
     </div>
   );

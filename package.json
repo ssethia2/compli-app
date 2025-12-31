@@ -11,22 +11,23 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.5.5",
+    "@tanstack/react-query": "^5.90.9",
     "aws-amplify": "^6.6.6",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.30.0",
-    "jspdf": "^2.5.1",
-    "html2canvas": "^1.4.1"
+    "react-router-dom": "^6.30.0"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.5.0",
     "@aws-amplify/backend-cli": "^1.2.9",
+    "@types/jspdf": "^2.0.0",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
-    "@types/jspdf": "^2.3.0",
     "@vitejs/plugin-react": "^4.2.1",
     "aws-cdk": "^2.138.0",
     "aws-cdk-lib": "^2.138.0",

@@ -185,7 +185,6 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [directorInfo, setDirectorInfo] = useState<Map<string, any>>(new Map());
-  const [requestDetails, setRequestDetails] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     fetchServiceRequests();
@@ -266,49 +265,44 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
     }
   };
 
-  const parseRequestData = (requestData: string, serviceType: string, requestId: string) => {
+  const parseRequestData = (requestData: string, serviceType: string, _requestId: string) => {
     try {
       const data = JSON.parse(requestData || '{}');
       console.log('Parsing request data:', data, 'Service type:', serviceType);
-      
-      // Get the enhanced details if available
-      const enhancedDetails = requestDetails.get(requestId) || {};
-      
+
       switch (serviceType) {
         case 'DIRECTOR_APPOINTMENT':
           return {
-            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || data.newDirector?.name || 'Not specified',
-            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || data.newDirector?.din || 'Not specified', 
-            'Director Category': data.directorCategory || data.category || (data.designation ? 'Based on designation' : 'Not specified'),
-            'Designation': data.designation || data.newDesignation || 'Not specified',
-            'Appointment Date': data.appointmentDate || data.effectiveDate ? 
-              new Date(data.appointmentDate || data.effectiveDate).toLocaleDateString() : 'Not specified',
-            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
-            'CIN/LLPIN': enhancedDetails.entityIdentifier || data.cinNumber || data.llpIN || data.selectedEntity?.identifier || 'Not specified',
-            'Previous Designation': data.previousDesignation || 'N/A',
-            'Change Type': data.isNewAppointment ? 'New Appointment' : 'Designation Change',
-            'Reason': data.reason || data.changeReason || 'Not provided'
+            'Director Name': data.directorName || 'Not specified',
+            'DIN': data.directorDIN || 'Not specified',
+            'Director Category': data.category || 'Not specified',
+            'Designation': data.designation || 'Not specified',
+            'Appointment Date': data.appointmentDate ?
+              new Date(data.appointmentDate).toLocaleDateString() : 'Not specified',
+            'Company/Entity': data.entityName || 'Not specified',
+            'CIN/LLPIN': data.entityIdentifier || 'Not specified',
+            'Authorizer DIN': data.authorizerDIN || 'N/A',
+            'Authorizer Name': data.authorizerName || 'N/A'
           };
-        
+
         case 'DIRECTOR_RESIGNATION':
           return {
-            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || 'Not specified',
-            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || 'Not specified',
-            'Resignation Date': data.resignationDate || data.effectiveDate ? 
-              new Date(data.resignationDate || data.effectiveDate).toLocaleDateString() : 'Not specified',
-            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
-            'CIN/LLPIN': enhancedDetails.entityIdentifier || data.cinNumber || data.llpIN || data.selectedEntity?.identifier || 'Not specified',
-            'Reason': data.reason || data.resignationReason || 'Not provided',
-            'Current Designation': data.currentDesignation || 'Not specified'
+            'Director Name': data.directorName || 'Not specified',
+            'DIN': data.directorDIN || 'Not specified',
+            'Resignation Date': data.resignationDate ?
+              new Date(data.resignationDate).toLocaleDateString() : 'Not specified',
+            'Company/Entity': data.entityName || 'Not specified',
+            'CIN/LLPIN': data.entityIdentifier || 'Not specified',
+            'Reason': data.reason || 'Not provided'
           };
-          
+
         case 'DIRECTOR_KYC':
           return {
-            'Director Name': enhancedDetails.directorName || data.directorName || data.selectedDirector?.name || 'Not specified',
-            'DIN': enhancedDetails.directorDIN || data.din || data.selectedDirector?.din || 'Not specified',
-            'KYC Type': data.kycType || data.documentType || 'Not specified',
-            'Company/Entity': enhancedDetails.entityName || data.companyName || data.entityName || data.selectedEntity?.name || 'Not specified',
-            'Status': data.status || data.kycStatus || 'Pending',
+            'Director Name': data.directorName || 'Not specified',
+            'DIN': data.directorDIN || 'Not specified',
+            'KYC Type': data.kycType || 'Not specified',
+            'Company/Entity': data.entityName || 'Not specified',
+            'Status': data.status || 'Pending',
             'Expiry Date': data.expiryDate ? new Date(data.expiryDate).toLocaleDateString() : 'Not specified'
           };
           
@@ -345,72 +339,9 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
     }
   };
 
-  const fetchRequestDetails = async (request: any) => {
-    try {
-      const data = JSON.parse(request.requestData || '{}');
-      const details: any = {};
-      
-      // Try to get company/LLP details by CIN/LLPIN
-      const cinNumber = data.cinNumber || data.selectedEntity?.identifier;
-      const llpIN = data.llpIN || data.selectedEntity?.identifier;
-      
-      if (cinNumber) {
-        try {
-          const companyResult = await client.models.Company.get({ id: cinNumber });
-          if (companyResult.data) {
-            details.entityName = companyResult.data.companyName;
-            details.entityType = 'Company';
-            details.entityIdentifier = companyResult.data.cinNumber;
-          }
-        } catch (error) {
-          console.warn('Could not fetch company:', error);
-        }
-      } else if (llpIN) {
-        try {
-          const llpResult = await client.models.LLP.get({ id: llpIN });
-          if (llpResult.data) {
-            details.entityName = llpResult.data.llpName;
-            details.entityType = 'LLP';
-            details.entityIdentifier = llpResult.data.llpIN;
-          }
-        } catch (error) {
-          console.warn('Could not fetch LLP:', error);
-        }
-      }
-      
-      // Try to get director details by DIN
-      const din = data.din || data.selectedDirector?.din || data.newDirector?.din;
-      if (din) {
-        try {
-          const directorResult = await client.models.UserProfile.list({
-            filter: { din: { eq: din } }
-          });
-          
-          if (directorResult.data && directorResult.data.length > 0) {
-            const director = directorResult.data[0];
-            details.directorName = director.displayName || director.email;
-            details.directorEmail = director.email;
-            details.directorDIN = director.din;
-          }
-        } catch (error) {
-          console.warn('Could not fetch director by DIN:', error);
-        }
-      }
-      
-      return details;
-    } catch (error) {
-      console.error('Error fetching request details:', error);
-      return {};
-    }
-  };
-
-  const showRequestDetails = async (request: any) => {
+  const showRequestDetails = (request: any) => {
     setSelectedRequest(request);
     setShowDetails(true);
-    
-    // Fetch detailed information
-    const details = await fetchRequestDetails(request);
-    setRequestDetails(prev => new Map(prev.set(request.id, details)));
   };
 
   if (loading) {
@@ -1360,6 +1291,8 @@ const ProfessionalDashboard: React.FC = () => {
           }}
           onSubmit={handleDirectorInfoSubmit}
           appointmentData={directorInfoFormData}
+          mode="professional"
+          taskId={currentDirectorInfoTaskId || undefined}
         />
 
         {/* Create Task Modal */}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUrl } from 'aws-amplify/storage';
+import { useAuthenticator } from '@aws-amplify/ui-react';
+import { getSignatureUrl as checkSignatureAccess } from '../../api/lambda';
 import './SignatureDisplay.css';
 
 interface SignatureDisplayProps {
@@ -17,30 +19,46 @@ const SignatureDisplay: React.FC<SignatureDisplayProps> = ({
   showBorder = true,
   showLabel = true
 }) => {
+  const { user } = useAuthenticator();
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
-    if (signatureKey) {
+    if (signatureKey && user) {
       fetchSignatureUrl();
     }
-  }, [signatureKey]);
+  }, [signatureKey, user]);
 
   const fetchSignatureUrl = async () => {
-    if (!signatureKey) return;
-    
+    if (!signatureKey || !user?.username) return;
+
     setLoading(true);
     setError(false);
-    
+    setAccessDenied(false);
+
     try {
+      // SECURITY: First check with backend if user has access
+      const accessCheck = await checkSignatureAccess({
+        signatureKey,
+        requestingUserId: user.username
+      });
+
+      if (!accessCheck.success || !accessCheck.allowed) {
+        setAccessDenied(true);
+        setError(true);
+        return;
+      }
+
+      // Backend approved - now get the S3 URL
       const result = await getUrl({
         key: signatureKey,
         options: {
           expiresIn: 3600 // 1 hour
         }
       });
-      
+
       setSignatureUrl(result.url.toString());
     } catch (err) {
       console.error('Error fetching signature URL:', err);
@@ -83,7 +101,7 @@ const SignatureDisplay: React.FC<SignatureDisplayProps> = ({
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
           </svg>
-          <span>Error loading signature</span>
+          <span>{accessDenied ? 'Access Denied' : 'Error loading signature'}</span>
         </div>
         {showLabel && <div className="signature-label">E-signature</div>}
       </div>

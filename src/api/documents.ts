@@ -1,6 +1,7 @@
 import { generateClient } from 'aws-amplify/data';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import type { Schema } from '../../amplify/data/resource';
+import { getDocuments as getDocumentsFromLambda } from './lambda';
 
 const client = generateClient<Schema>();
 
@@ -40,83 +41,28 @@ const generateS3Key = (fileName: string, uploadedBy: string, serviceRequestId?: 
 
 /**
  * Get documents based on role and filters
+ * SECURITY: All filtering logic now in backend Lambda
  */
 export const getDocuments = async (filter: DocumentFilter) => {
-  let queryFilter: any = {};
-
-  // Priority 1: Filter by service request
-  if (filter.serviceRequestId) {
-    queryFilter.serviceRequestId = { eq: filter.serviceRequestId };
-  }
-  // Priority 2: Filter by entity
-  else if (filter.entityId && filter.entityType) {
-    queryFilter.and = [
-      { entityId: { eq: filter.entityId } },
-      { entityType: { eq: filter.entityType } }
-    ];
-  }
-  // Priority 3: Apply role-based filtering
-  else if (filter.userId && filter.role) {
-    if (filter.role === 'DIRECTORS') {
-      // Directors can only see their own documents
-      queryFilter.uploadedBy = { eq: filter.userId };
-    } else if (filter.role === 'PROFESSIONALS') {
-      // Professionals can see documents from directors they're associated with
-      const professionalAssignments = await client.models.ProfessionalAssignment.list({
-        filter: { professionalId: { eq: filter.userId } }
-      });
-
-      if (professionalAssignments.data.length === 0) {
-        return { data: [], errors: [] };
-      }
-
-      // Find all directors associated with those entities
-      const directorUserIds = new Set<string>();
-
-      for (const assignment of professionalAssignments.data) {
-        if (!assignment.entityId || !assignment.entityType) continue;
-
-        const directorAssociations = await client.models.DirectorAssociation.list({
-          filter: {
-            and: [
-              { entityId: { eq: assignment.entityId } },
-              { entityType: { eq: assignment.entityType } }
-            ]
-          }
-        });
-
-        directorAssociations.data.forEach(da => {
-          if (da.userId) {
-            directorUserIds.add(da.userId);
-          }
-        });
-      }
-
-      if (directorUserIds.size === 0) {
-        return { data: [], errors: [] };
-      }
-
-      // Build OR filter for all director userIds
-      const uploaderFilters = Array.from(directorUserIds).map(userId => ({
-        uploadedBy: { eq: userId }
-      }));
-
-      if (uploaderFilters.length === 1) {
-        queryFilter = uploaderFilters[0];
-      } else {
-        queryFilter.or = uploaderFilters;
-      }
-    }
+  // Validate required fields
+  if (!filter.userId || !filter.role) {
+    throw new Error('userId and role are required');
   }
 
-  const result = await client.models.Document.list({ filter: queryFilter });
+  // Call Lambda backend which enforces security
+  const result = await getDocumentsFromLambda({
+    userId: filter.userId,
+    role: filter.role,
+    serviceRequestId: filter.serviceRequestId,
+    entityId: filter.entityId,
+    entityType: filter.entityType
+  });
 
-  // Sort by upload date (newest first)
-  const sortedData = result.data.sort((a, b) =>
-    new Date(b.uploadedAt || '').getTime() - new Date(a.uploadedAt || '').getTime()
-  );
+  if (!result.success) {
+    throw new Error(result.message || 'Failed to get documents');
+  }
 
-  return { data: sortedData, errors: result.errors };
+  return { data: result.data, errors: [] };
 };
 
 /**

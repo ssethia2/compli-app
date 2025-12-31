@@ -1,20 +1,19 @@
 import React from 'react';
+import { useAuthenticator } from '@aws-amplify/ui-react';
 import SignatureDisplay from '../../shared/SignatureDisplay';
-import { updateUserProfile } from '../../../api';
+import { useUserProfile, useUpdateUserProfile } from '../../../hooks/useUserProfile';
 
 interface DirectorProfileTabProps {
-  userProfile: any;
-  profileRefreshTrigger: number;
   onOpenESignModal: () => void;
-  onProfileUpdate: () => void;
 }
 
 const DirectorProfileTab: React.FC<DirectorProfileTabProps> = ({
-  userProfile,
-  profileRefreshTrigger,
-  onOpenESignModal,
-  onProfileUpdate
+  onOpenESignModal
 }) => {
+  const { user } = useAuthenticator();
+  const { data: userProfile, isLoading, error } = useUserProfile(user?.username);
+  const updateProfileMutation = useUpdateUserProfile();
+
   const handleUpdateDIN = async () => {
     const din = prompt('Please enter your DIN (8 digits):');
 
@@ -31,19 +30,27 @@ const DirectorProfileTab: React.FC<DirectorProfileTabProps> = ({
         return;
       }
 
-      await updateUserProfile({
+      await updateProfileMutation.mutateAsync({
         id: userProfile.id,
         din: din,
         dinStatus: 'ACTIVE'
       });
 
       alert('DIN updated successfully!');
-      onProfileUpdate();
+      // React Query automatically refetches
     } catch (error) {
       console.error('Error updating DIN:', error);
       alert('Failed to update DIN. Please try again.');
     }
   };
+
+  if (isLoading) {
+    return <div className="loading-state">Loading profile...</div>;
+  }
+
+  if (error) {
+    return <div className="error-state">Error loading profile. Please try again.</div>;
+  }
 
   return (
     <div>
@@ -57,9 +64,7 @@ const DirectorProfileTab: React.FC<DirectorProfileTabProps> = ({
             <div className="profile-field">
               <label>Name:</label>
               <span>
-                {userProfile?.displayName ||
-                 userProfile?.email?.split('@')[0] ||
-                 'Not specified'}
+                {userProfile?.displayName || 'Not specified'}
               </span>
             </div>
             <div className="profile-field">
@@ -118,8 +123,7 @@ const DirectorProfileTab: React.FC<DirectorProfileTabProps> = ({
             <div className="profile-field full-width">
               <label>E-signature:</label>
               <SignatureDisplay
-                key={profileRefreshTrigger}
-                signatureKey={userProfile?.eSignImageUrl}
+                signatureKey={userProfile?.eSignImageUrl ?? undefined}
                 width="250px"
                 height="100px"
                 showBorder={true}

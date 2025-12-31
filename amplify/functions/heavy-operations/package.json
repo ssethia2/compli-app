@@ -1,0 +1,16 @@
+{
+  "name": "heavy-operations",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Heavy compute-intensive operations (PDF generation, OCR, complex processing)",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "@aws-sdk/client-s3": "^3.600.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.7",
+    "@types/aws-lambda": "^8.10.138"
+  }
+}

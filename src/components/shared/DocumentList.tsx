@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getDocuments, getDocumentUrl, deleteDocument as deleteDocumentApi, getDocumentUploaderProfiles } from '../../api';
+import { getDocumentUrl, getDocumentUploaderProfiles } from '../../api';
+import { useDocuments, useDeleteDocument } from '../../hooks/useDocuments';
 import './DocumentList.css';
 
 interface DocumentListProps {
@@ -27,43 +28,32 @@ const DocumentList: React.FC<DocumentListProps> = ({
   currentUserId,
   currentUserRole
 }) => {
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use React Query hook instead of manual state + useEffect
+  const { data, isLoading, error } = useDocuments({
+    serviceRequestId,
+    entityId,
+    entityType,
+    userId: currentUserId,
+    role: currentUserRole
+  });
+
+  const documents = data?.data || [];
+  const deleteDocumentMutation = useDeleteDocument();
+
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [userProfiles, setUserProfiles] = useState<Map<string, any>>(new Map());
 
+  // Fetch user profiles when documents change
   useEffect(() => {
-    fetchDocuments();
-  }, [entityId, entityType, serviceRequestId, currentUserId, currentUserRole]);
-
-  const fetchDocuments = async () => {
-    setLoading(true);
-    try {
-      // Build filter based on props
-      const filter = {
-        serviceRequestId,
-        entityId,
-        entityType,
-        userId: currentUserId,
-        role: currentUserRole
-      };
-
-      // Call the centralized API
-      const result = await getDocuments(filter);
-      setDocuments(result.data);
-
-      // Fetch user profiles for uploaders if showing uploader info or grouping by user
-      if ((showUploader || groupByUser) && result.data.length > 0) {
-        const uniqueUploaders = [...new Set(result.data.map((doc: any) => doc.uploadedBy).filter(Boolean))] as string[];
+    if ((showUploader || groupByUser) && documents.length > 0) {
+      const fetchProfiles = async () => {
+        const uniqueUploaders = [...new Set(documents.map((doc: any) => doc.uploadedBy).filter(Boolean))] as string[];
         const profileMap = await getDocumentUploaderProfiles(uniqueUploaders);
         setUserProfiles(profileMap);
-      }
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-    } finally {
-      setLoading(false);
+      };
+      fetchProfiles();
     }
-  };
+  }, [documents, showUploader, groupByUser]);
 
   const downloadDocument = async (document: any) => {
     try {
@@ -97,10 +87,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
 
     try {
-      await deleteDocumentApi(document.id);
-
-      // Remove from local state
-      setDocuments(prev => prev.filter(doc => doc.id !== document.id));
+      await deleteDocumentMutation.mutateAsync(document.id);
 
       if (onDocumentDeleted) {
         onDocumentDeleted(document.id);
@@ -109,6 +96,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       if (onRefresh) {
         onRefresh();
       }
+      // React Query automatically invalidates cache and refetches
     } catch (error) {
       console.error('Error deleting document:', error);
       alert('Failed to delete document');
@@ -173,8 +161,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }));
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className="document-list-loading">Loading documents...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="document-list-error">
+        <p>Error loading documents. Please try again.</p>
+      </div>
+    );
   }
 
   if (documents.length === 0) {

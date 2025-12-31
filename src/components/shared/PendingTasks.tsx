@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getUserTasks, completeTask, getUserNotifications, markNotificationAsRead } from '../../services/notificationService';
+import { getUserNotifications, markNotificationAsRead } from '../../services/notificationService';
+import { usePendingTasks, useCompleteTask } from '../../hooks/useTasks';
 import DINEmailAssociationModal from './DINEmailAssociationModal';
 import './PendingTasks.css';
 
@@ -12,43 +13,47 @@ interface PendingTasksProps {
 }
 
 const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole, onDirectorInfoTask, onDirectorFormGeneration, onDirectorInfoFormTask }) => {
-  const [tasks, setTasks] = useState<any[]>([]);
+  // Use React Query hooks for tasks
+  const { data: tasksData, isLoading: tasksLoading } = usePendingTasks(userId);
+  const completeTaskMutation = useCompleteTask();
+
+  const tasks = tasksData?.data || [];
+
+  // Keep manual state for notifications (no hook yet)
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+
   const [activeTab, setActiveTab] = useState<'tasks' | 'notifications'>('tasks');
   const [showDINModal, setShowDINModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchNotifications();
   }, [userId]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchNotifications = async () => {
+    setNotificationsLoading(true);
     try {
-      const [tasksData, notificationsData] = await Promise.all([
-        getUserTasks(userId),
-        getUserNotifications(userId)
-      ]);
-      
-      setTasks(tasksData);
+      const notificationsData = await getUserNotifications(userId);
       setNotifications(notificationsData);
     } catch (error) {
-      console.error('Error fetching tasks and notifications:', error);
+      console.error('Error fetching notifications:', error);
     } finally {
-      setLoading(false);
+      setNotificationsLoading(false);
     }
   };
 
   const handleCompleteTask = async (taskId: string) => {
     try {
-      await completeTask(taskId);
-      setTasks(prev => prev.filter(task => task.id !== taskId));
+      await completeTaskMutation.mutateAsync(taskId);
+      // React Query automatically updates cache and removes the task
     } catch (error) {
       console.error('Error completing task:', error);
       alert('Failed to complete task');
     }
   };
+
+  const loading = tasksLoading || notificationsLoading;
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -68,10 +73,14 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
     if (onDirectorInfoTask && task.metadata) {
       try {
         const metadata = JSON.parse(task.metadata);
+
+        // Support both old and new metadata structures
+        const appointmentData = metadata.appointmentRequest || metadata.appointmentData;
+
         const taskData = {
           taskId: task.id,
-          serviceRequestId: metadata.serviceRequestId,
-          appointmentData: metadata.appointmentData
+          serviceRequestId: metadata.serviceRequestId, // For backward compatibility
+          appointmentData: appointmentData
         };
         onDirectorInfoTask(taskData);
       } catch (error) {
@@ -128,7 +137,7 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
     }
   };
 
-  const getPriorityColor = (priority: string): string => {
+  const getPriorityColor = (priority: string | null): string => {
     switch (priority) {
       case 'URGENT': return '#ff4444';
       case 'HIGH': return '#ff6b35';
@@ -138,7 +147,7 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
     }
   };
 
-  const getPriorityIcon = (priority: string): string => {
+  const getPriorityIcon = (priority: string | null): string => {
     switch (priority) {
       case 'URGENT': return '🚨';
       case 'HIGH': return '🔥';
@@ -148,7 +157,7 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
     }
   };
 
-  const getTaskTypeIcon = (taskType: string): string => {
+  const getTaskTypeIcon = (taskType: string | null): string => {
     switch (taskType) {
       case 'DOCUMENT_UPLOAD': return '📄';
       case 'FORM_COMPLETION': return '📝';
@@ -191,7 +200,8 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
     }
   };
 
-  const formatTaskType = (taskType: string): string => {
+  const formatTaskType = (taskType: string | null): string => {
+    if (!taskType) return 'Unknown';
     return taskType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
   };
 
@@ -290,6 +300,28 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
                           }}
                         >
                           📝 Complete Director Form
+                        </button>
+                      ) : task.title.includes('Disclose Interest in Other Companies') ? (
+                        <button
+                          className="director-info-btn"
+                          onClick={() => {
+                            if (onDirectorInfoTask && task.metadata) {
+                              try {
+                                const metadata = JSON.parse(task.metadata);
+                                const taskData = {
+                                  taskId: task.id,
+                                  preselectedCompanies: metadata.directorInfo?.companiesForDisclosure || [],
+                                  metadata: metadata
+                                };
+                                onDirectorInfoTask(taskData);
+                              } catch (error) {
+                                console.error('Error parsing task metadata:', error);
+                                alert('Error loading task data. Please refresh and try again.');
+                              }
+                            }
+                          }}
+                        >
+                          📝 Disclose Interest in Companies
                         </button>
                       ) : task.title.includes('Generate Director Appointment Forms') ? (
                         <button

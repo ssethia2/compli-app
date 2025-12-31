@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import { uploadDocument } from '../../api';
+import { useUploadDocument } from '../../hooks/useDocuments';
 import './FileUpload.css';
 
 interface FileUploadProps {
@@ -31,7 +31,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   hideDocumentNameInput = false
 }) => {
   const { user } = useAuthenticator();
-  const [uploading, setUploading] = useState(false);
+  const uploadDocumentMutation = useUploadDocument();
+
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [documentName, setDocumentName] = useState(defaultDocumentName);
@@ -59,8 +60,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
       // Set initial progress
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
-      // Use the centralized API to upload
-      const result = await uploadDocument({
+      // Use React Query mutation
+      const result = await uploadDocumentMutation.mutateAsync({
         file,
         documentName: documentName.trim() || defaultDocumentName || file.name,
         documentType,
@@ -82,31 +83,29 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const handleFiles = async (files: FileList) => {
     if (!files.length) return;
-    
-    setUploading(true);
+
     const filesToUpload = isMultiple ? Array.from(files) : [files[0]];
-    
+
     try {
       const uploadPromises = filesToUpload.map(file => uploadFile(file));
       const results = await Promise.all(uploadPromises);
-      
+
       results.forEach(document => {
         if (onUploadComplete) {
           onUploadComplete(document);
         }
       });
-      
+
       if (onRefresh) {
         onRefresh();
       }
-      
+      // React Query automatically invalidates cache and refetches
+
       // Clear progress and document name
       setUploadProgress({});
       setDocumentName('');
     } catch (error) {
       alert(`Upload failed: ${(error as Error).message}`);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -133,13 +132,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
             value={documentName}
             onChange={(e) => setDocumentName(e.target.value)}
             placeholder="Enter a custom name for this document"
-            disabled={uploading}
+            disabled={uploadDocumentMutation.isPending}
           />
         </div>
       )}
 
       <div
-        className={`file-upload-area ${dragOver ? 'drag-over' : ''} ${uploading ? 'uploading' : ''}`}
+        className={`file-upload-area ${dragOver ? 'drag-over' : ''} ${uploadDocumentMutation.isPending ? 'uploading' : ''}`}
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -152,11 +151,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
           accept={acceptedFileTypes.join(',')}
           onChange={handleFileInput}
           style={{ display: 'none' }}
-          disabled={uploading}
+          disabled={uploadDocumentMutation.isPending}
         />
-        
+
         <div className="upload-content">
-          {uploading ? (
+          {uploadDocumentMutation.isPending ? (
             <div className="upload-progress">
               <div className="upload-spinner"></div>
               <p>Uploading...</p>

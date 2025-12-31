@@ -1,11 +1,22 @@
 import React from 'react';
+import { useAuthenticator } from '@aws-amplify/ui-react';
+import { useDirectorEntities } from '../../../hooks/useEntities';
 
-interface LLPsTabProps {
-  llps: any[];
-  associations: any[];
-}
+const LLPsTab: React.FC = () => {
+  const { user } = useAuthenticator();
+  const { data: entitiesData, isLoading, error } = useDirectorEntities(user?.username);
 
-const LLPsTab: React.FC<LLPsTabProps> = ({ llps, associations }) => {
+  if (isLoading) {
+    return <div className="loading-state">Loading LLPs...</div>;
+  }
+
+  if (error) {
+    return <div className="error-state">Error loading LLPs. Please try again.</div>;
+  }
+
+  const llps = entitiesData?.llps || [];
+  const associations = entitiesData?.associations || [];
+
   return (
     <div>
       <h2>Associated LLPs</h2>
@@ -26,9 +37,9 @@ const LLPsTab: React.FC<LLPsTabProps> = ({ llps, associations }) => {
               <td colSpan={6} className="no-data">No associated LLPs found.</td>
             </tr>
           ) : (
-            llps.map(llp => {
+            llps.map((llp: any) => {
               const myAssociation = associations.find(
-                a => a.entityId === llp.id && a.entityType === 'LLP'
+                (a: any) => a.entityId === llp.id && a.entityType === 'LLP'
               );
               return (
                 <tr key={llp.id}>

@@ -1,11 +1,22 @@
 import React from 'react';
+import { useAuthenticator } from '@aws-amplify/ui-react';
+import { useDirectorEntities } from '../../../hooks/useEntities';
 
-interface CompaniesTabProps {
-  companies: any[];
-  associations: any[];
-}
+const CompaniesTab: React.FC = () => {
+  const { user } = useAuthenticator();
+  const { data: entitiesData, isLoading, error } = useDirectorEntities(user?.username);
 
-const CompaniesTab: React.FC<CompaniesTabProps> = ({ companies, associations }) => {
+  if (isLoading) {
+    return <div className="loading-state">Loading companies...</div>;
+  }
+
+  if (error) {
+    return <div className="error-state">Error loading companies. Please try again.</div>;
+  }
+
+  const companies = entitiesData?.companies || [];
+  const associations = entitiesData?.associations || [];
+
   return (
     <div>
       <h2>Associated Companies</h2>
@@ -26,9 +37,9 @@ const CompaniesTab: React.FC<CompaniesTabProps> = ({ companies, associations }) 
               <td colSpan={6} className="no-data">No associated companies found.</td>
             </tr>
           ) : (
-            companies.map(company => {
+            companies.map((company: any) => {
               const myAssociation = associations.find(
-                a => a.entityId === company.id && a.entityType === 'COMPANY'
+                (a: any) => a.entityId === company.id && a.entityType === 'COMPANY'
               );
               return (
                 <tr key={company.id}>
