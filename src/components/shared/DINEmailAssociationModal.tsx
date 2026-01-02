@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { generateClient } from 'aws-amplify/data';
 import { useAuthenticator } from '@aws-amplify/ui-react';
-import type { Schema } from '../../../amplify/data/resource';
+import { associateDINEmail } from '../../api/lambda';
 import './DINEmailAssociationModal.css';
-
-const client = generateClient<Schema>();
 
 interface DINEmailAssociationModalProps {
   isOpen: boolean;
@@ -52,98 +49,26 @@ const DINEmailAssociationModal: React.FC<DINEmailAssociationModalProps> = ({
     setError('');
 
     try {
-      // Validate email format
-      if (!formData.email || !formData.email.includes('@')) {
-        setError('Please enter a valid email address.');
-        setLoading(false);
-        return;
-      }
-
-      // Check if this DIN is already associated with an email
-      let existingAssociation: any = { data: [] };
-      try {
-        if (client.models.PendingDirector) {
-          existingAssociation = await client.models.PendingDirector.list({
-            filter: {
-              and: [
-                { din: { eq: formData.din } },
-                { status: { eq: 'PENDING' } }
-              ]
-            }
-          });
-        }
-      } catch (err) {
-        console.warn('PendingDirector model not available, skipping duplicate check:', err);
-      }
-
-      if (existingAssociation.data.length > 0) {
-        setError('This DIN is already associated with an email. Please check existing associations.');
-        setLoading(false);
-        return;
-      }
-
-      // Check if someone already has an account with this email
-      const existingUser = await client.models.UserProfile.list({
-        filter: { email: { eq: formData.email.toLowerCase().trim() } }
+      const result = await associateDINEmail({
+        din: formData.din,
+        email: formData.email,
+        entityId: initialData?.entityId,
+        entityType: initialData?.entityType as 'COMPANY' | 'LLP' | undefined,
+        professionalUserId: user?.username || '',
+        directorName: formData.directorName,
+        requestContext: initialData?.requestContext
       });
 
-      if (existingUser.data.length > 0) {
-        // If user exists, directly update their profile with the DIN
-        await client.models.UserProfile.update({
-          id: existingUser.data[0].id,
-          din: formData.din,
-          dinStatus: 'ACTIVE'
-        });
-
-        alert('Director account found! Their profile has been updated with the DIN immediately.');
-        onAssociationCreated({
-          din: formData.din,
-          email: formData.email,
-          status: 'CLAIMED'
-        });
-        handleClose();
-        return;
-      }
-
-      // Create the pending director association
-      let association = null;
-      try {
-        if (client.models.PendingDirector) {
-          association = await client.models.PendingDirector.create({
-            din: formData.din,
-            email: formData.email.toLowerCase().trim(),
-            directorName: formData.directorName || undefined,
-            associatedBy: user?.username || '',
-            entityId: initialData?.entityId,
-            entityType: initialData?.entityType as 'COMPANY' | 'LLP' | undefined,
-            status: 'PENDING',
-            requestContext: initialData?.requestContext ? JSON.stringify(initialData.requestContext) : undefined,
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
-          });
-          console.log('DIN-Email association created:', association);
-        } else {
-          // Fallback: create a simple association object
-          association = {
-            data: {
-              din: formData.din,
-              email: formData.email.toLowerCase().trim(),
-              status: 'PENDING',
-              createdAt: new Date().toISOString()
-            }
-          };
-          console.log('PendingDirector model not available, created fallback association:', association);
+      if (!result.success) {
+        setError(result.message || 'Failed to create association');
+        if (result.errors && Array.isArray(result.errors)) {
+          setError(result.errors.join(', '));
         }
-      } catch (err) {
-        console.error('Error creating PendingDirector association:', err);
-        setError('Failed to create association. The data model may not be deployed yet.');
-        setLoading(false);
         return;
       }
 
-      onAssociationCreated(association.data);
-      
-      alert(`DIN ${formData.din} has been associated with ${formData.email}. ${client.models.PendingDirector ? 'When someone creates an account with this email, their profile will automatically be populated with the DIN.' : 'Note: Full association features require schema deployment.'}`);
+      onAssociationCreated(result.data);
+      alert(result.message);
       handleClose();
 
     } catch (error) {

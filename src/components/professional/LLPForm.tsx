@@ -1,11 +1,7 @@
 // src/components/professional/LLPForm.tsx
 import React, { useState } from 'react';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../../amplify/data/resource';
+import { createLLP } from '../../api/lambda';
 import './Forms.css';
-
-// Initialize the data client
-const client = generateClient<Schema>();
 
 interface LLPFormProps {
   onSuccess?: (llpId: string) => void;
@@ -51,17 +47,33 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       console.log('Creating LLP with data:', formData);
-      
-      // Create the LLP record
-      const result = await client.models.LLP.create({
-        ...formData,
-        llpStatus: formData.llpStatus as 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF' | 'AMALGAMATED'
+
+      const result = await createLLP({
+        llpIN: formData.llpIN,
+        llpName: formData.llpName,
+        dateOfIncorporation: formData.dateOfIncorporation || undefined,
+        emailId: formData.emailId || undefined,
+        registeredAddress: formData.registeredAddress || undefined,
+        totalContribution: formData.totalObligationOfContribution || undefined,
+        numberOfPartners: formData.numberOfPartners || undefined,
+        llpStatus: formData.llpStatus as 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF',
+        lastAnnualFilingDate: formData.lastAnnualFilingDate || undefined,
+        financialYear: formData.financialYear || undefined
       });
+
+      if (!result.success) {
+        setError(result.message || 'Failed to create LLP');
+        if (result.errors && Array.isArray(result.errors)) {
+          setError(result.errors.join(', '));
+        }
+        return;
+      }
+
       console.log('LLP created successfully:', result);
-      
+
       // Reset form
       setFormData({
         llpIN: '',
@@ -77,13 +89,12 @@ const LLPForm: React.FC<LLPFormProps> = ({ onSuccess }) => {
         lastAnnualFilingDate: '',
         financialYear: ''
       });
-      
-      // Call success callback if provided with LLP ID
-      const createdLlpId = result.data?.llpIN;
+
+      const createdLlpId = result.data?.id;
       if (onSuccess && createdLlpId) {
         onSuccess(createdLlpId);
       }
-      
+
       alert('LLP created successfully!');
     } catch (err) {
       console.error('Error creating LLP:', err);

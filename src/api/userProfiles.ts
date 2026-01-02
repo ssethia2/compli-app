@@ -31,22 +31,18 @@ export interface UpdateUserProfileParams {
  * Get user profile by userId (Cognito username)
  */
 export const getUserProfileByUserId = async (userId: string) => {
-  const result = await client.models.UserProfile.list({
-    filter: { userId: { eq: userId } }
-  });
-
-  return result.data.length > 0 ? result.data[0] : null;
+  const { getUserProfile } = await import('./lambda');
+  const result = await getUserProfile({ userId });
+  return result.success ? result.data : null;
 };
 
 /**
  * Get user profile by email
  */
 export const getUserProfileByEmail = async (email: string) => {
-  const result = await client.models.UserProfile.list({
-    filter: { email: { eq: email } }
-  });
-
-  return result.data.length > 0 ? result.data[0] : null;
+  const { getUserProfile } = await import('./lambda');
+  const result = await getUserProfile({ email });
+  return result.success ? result.data : null;
 };
 
 /**

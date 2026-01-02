@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../../amplify/data/resource';
 import './DirectorInfoForm.css';
-
-const client = generateClient<Schema>();
 
 interface DirectorInfo {
   // Personal Information
@@ -196,153 +192,14 @@ const DirectorInfoForm: React.FC<DirectorInfoFormProps> = ({
     }
   }, [isOpen, mode, preselectedCompanies]);
 
-  // Pre-fill form with director's profile and entity data
-  useEffect(() => {
-    if (isOpen && appointmentData?.directorUserId) {
-      console.log('Fetching director profile for:', appointmentData.directorUserId);
-      fetchDirectorProfileData();
-    }
-    if (isOpen && appointmentData?.entityId) {
-      console.log('Fetching entity data for:', appointmentData.entityId);
-      fetchEntityData();
-    }
-  }, [isOpen, appointmentData?.directorUserId, appointmentData?.entityId]);
-
-  const fetchDirectorProfileData = async () => {
-    try {
-      // Fetch the DIRECTOR's profile, not the professional's
-      const directorUserId = appointmentData?.directorUserId;
-      console.log('fetchDirectorProfileData - directorUserId:', directorUserId);
-
-      if (!directorUserId) {
-        console.log('No directorUserId found, skipping profile fetch');
-        return;
-      }
-
-      const userProfile = await client.models.UserProfile.list({
-        filter: { userId: { eq: directorUserId } }
-      });
-
-      console.log('Fetched director profile:', userProfile.data);
-
-      if (userProfile.data.length > 0) {
-        const profile = userProfile.data[0];
-        console.log('Updating form with profile:', profile);
-        setFormData(prev => ({
-          ...prev,
-          fullName: profile.displayName || prev.fullName,
-          din: profile.din || prev.din,
-          email: profile.email || prev.email,
-          pan: profile.pan || prev.pan
-        }));
-      } else {
-        console.log('No profile found for director userId:', directorUserId);
-      }
-    } catch (error) {
-      console.error('Error fetching director profile:', error);
-    }
-  };
-
-  const fetchEntityData = async () => {
-    try {
-      const entityId = appointmentData?.entityId;
-      const entityType = appointmentData?.entityType;
-
-      if (!entityId || !entityType) return;
-
-      if (entityType === 'COMPANY') {
-        const company = await client.models.Company.get({ id: entityId });
-        if (company.data && company.data !== null) {
-          setFormData(prev => ({
-            ...prev,
-            nominalCapital: company.data!.authorizedCapital?.toString() || '',
-            paidUpCapital: company.data!.paidUpCapital?.toString() || ''
-          }));
-        }
-      } else if (entityType === 'LLP') {
-        const llp = await client.models.LLP.get({ id: entityId });
-        if (llp.data && llp.data !== null) {
-          setFormData(prev => ({
-            ...prev,
-            nominalCapital: llp.data!.totalObligationOfContribution?.toString() || '',
-            paidUpCapital: llp.data!.totalObligationOfContribution?.toString() || ''
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching entity data:', error);
-    }
-  };
-
 
   const handleInputChange = (field: keyof DirectorInfo, value: string | boolean | Array<any>) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const validateForm = (): boolean => {
-    // Appointee mode: Only validate company disclosures
-    if (mode === 'appointee') {
-      if (companyDisclosures.length === 0) {
-        setError('No companies to disclose interest for');
-        return false;
-      }
-
-      for (const company of companyDisclosures) {
-        if (!company.natureOfInterest || !company.dateOfInterest) {
-          setError(`Please complete all disclosure fields for ${company.name}`);
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    // Professional mode: Validate all fields except interest disclosure
-    const requiredFields: (keyof DirectorInfo)[] = [
-      'fullName', 'fatherName', 'dateOfBirth', 'din', 'pan', 'email',
-      'mobileNumber', 'residentialAddress', 'state', 'pincode',
-      'appointmentDate', 'designation', 'occupation'
-    ];
-
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        setError(`Please fill in the ${field.replace(/([A-Z])/g, ' $1').toLowerCase()} field`);
-        return false;
-      }
-    }
-
-    if (!formData.consentGiven) {
-      setError('Please provide consent for appointment');
-      return false;
-    }
-
-    if (!formData.notDisqualified) {
-      setError('Please confirm you are not disqualified from being a director');
-      return false;
-    }
-
-    if (!formData.noConflictOfInterest) {
-      setError('Please confirm there is no conflict of interest');
-      return false;
-    }
-
-    const validCompanyNames = companyNames.filter(name => name.trim() !== '');
-    if (validCompanyNames.length === 0) {
-      setError('Please add at least one company for interest disclosure');
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!validateForm()) {
-      return;
-    }
-
     setLoading(true);
     try {
       if (mode === 'professional') {

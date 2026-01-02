@@ -47,6 +47,27 @@ export const handler = async (event: any) => {
       case 'getSignatureUrl':
         return await handleGetSignatureUrl(body.data);
 
+      case 'getTaskDetails':
+        return await handleGetTaskDetails(body.data);
+
+      case 'createCompany':
+        return await handleCreateCompany(body.data);
+
+      case 'createLLP':
+        return await handleCreateLLP(body.data);
+
+      case 'getUserProfile':
+        return await handleGetUserProfile(body.data);
+
+      case 'getServiceRequests':
+        return await handleGetServiceRequests(body.data);
+
+      case 'getCompany':
+        return await handleGetCompany(body.data);
+
+      case 'getLLP':
+        return await handleGetLLP(body.data);
+
       default:
         return createResponse(400, {
           success: false,
@@ -337,35 +358,185 @@ async function handleCompleteDirectorDocumentUpload(data: any) {
 }
 
 async function handleAssociateDINEmail(data: any) {
-  const { din, email, entityId, professionalUserId } = data;
+  const { din, email, entityId, entityType, professionalUserId, directorName, requestContext } = data;
 
-  // 1. Create or update PendingDirector record
-  const createPendingDirectorMutation = `
-    mutation CreatePendingDirector($input: CreatePendingDirectorInput!) {
-      createPendingDirector(input: $input) {
-        id
+  // Validation
+  const validationErrors: string[] = [];
+
+  if (!din || din.length !== 8 || !/^[0-9]{8}$/.test(din)) {
+    validationErrors.push('DIN must be exactly 8 digits');
+  }
+
+  if (!email || !email.includes('@')) {
+    validationErrors.push('Valid email address is required');
+  }
+
+  if (!professionalUserId) {
+    validationErrors.push('Professional user ID is required');
+  }
+
+  if (validationErrors.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'Validation failed',
+      errors: validationErrors
+    });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 1. Check if this DIN is already associated with an email
+  const listPendingDirectorsQuery = `
+    query ListPendingDirectors($din: String!, $status: PendingDirectorStatus!) {
+      listPendingDirectors(filter: {
+        and: [
+          { din: { eq: $din } }
+          { status: { eq: $status } }
+        ]
+      }) {
+        items {
+          id
+          email
+        }
       }
     }
   `;
 
-  await graphqlRequest(createPendingDirectorMutation, {
-    input: {
-      din,
-      email,
-      associatedBy: professionalUserId,
-      entityId,
-      status: 'PENDING',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-    }
-  });
+  const existingAssociationsResult = await graphqlRequest<{ listPendingDirectors: { items: any[] } }>(
+    listPendingDirectorsQuery,
+    { din, status: 'PENDING' }
+  );
 
-  // 2. Find and update the task that requested this association
+  if (existingAssociationsResult.listPendingDirectors.items.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'This DIN is already associated with an email. Please check existing associations.',
+      existingEmail: existingAssociationsResult.listPendingDirectors.items[0].email
+    });
+  }
+
+  // 2. Check if someone already has an account with this email
+  const listUserProfilesQuery = `
+    query ListUserProfiles($email: String!) {
+      listUserProfiles(filter: { email: { eq: $email } }) {
+        items {
+          id
+          userId
+          email
+          displayName
+        }
+      }
+    }
+  `;
+
+  const existingUserResult = await graphqlRequest<{ listUserProfiles: { items: any[] } }>(
+    listUserProfilesQuery,
+    { email: normalizedEmail }
+  );
+
+  // If user exists, directly update their profile with the DIN
+  if (existingUserResult.listUserProfiles.items.length > 0) {
+    const existingUser = existingUserResult.listUserProfiles.items[0];
+
+    const updateUserProfileMutation = `
+      mutation UpdateUserProfile($input: UpdateUserProfileInput!) {
+        updateUserProfile(input: $input) {
+          id
+          din
+          dinStatus
+        }
+      }
+    `;
+
+    await graphqlRequest(updateUserProfileMutation, {
+      input: {
+        id: existingUser.id,
+        din,
+        dinStatus: 'ACTIVE'
+      }
+    });
+
+    // Complete matching tasks
+    const listTasksQuery = `
+      query ListTasks($assignedTo: String!, $status: TaskStatus!, $taskType: TaskType!) {
+        listTasks(filter: {
+          assignedTo: { eq: $assignedTo }
+          status: { eq: $status }
+          taskType: { eq: $taskType }
+        }) {
+          items {
+            id
+            metadata
+          }
+        }
+      }
+    `;
+
+    const tasksResult = await graphqlRequest<{ listTasks: { items: any[] } }>(
+      listTasksQuery,
+      { assignedTo: professionalUserId, status: 'PENDING', taskType: 'INFORMATION_UPDATE' }
+    );
+
+    for (const task of tasksResult.listTasks.items) {
+      const metadata = task.metadata ? JSON.parse(task.metadata) : {};
+      if (metadata.directorDIN === din && metadata.requestType === 'din-email-association') {
+        await handleCompleteTask({ taskId: task.id, userId: professionalUserId });
+      }
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Director account found! Their profile has been updated with the DIN immediately.',
+      status: 'CLAIMED',
+      userFound: true,
+      data: {
+        din,
+        email: normalizedEmail,
+        status: 'CLAIMED'
+      }
+    });
+  }
+
+  // 3. Create the pending director association
+  const createPendingDirectorMutation = `
+    mutation CreatePendingDirector($input: CreatePendingDirectorInput!) {
+      createPendingDirector(input: $input) {
+        id
+        din
+        email
+        directorName
+        status
+        createdAt
+        expiresAt
+      }
+    }
+  `;
+
+  const createdAssociation = await graphqlRequest<{ createPendingDirector: any }>(
+    createPendingDirectorMutation,
+    {
+      input: {
+        din,
+        email: normalizedEmail,
+        directorName: directorName || undefined,
+        associatedBy: professionalUserId,
+        entityId: entityId || undefined,
+        entityType: entityType as 'COMPANY' | 'LLP' | undefined,
+        status: 'PENDING',
+        requestContext: requestContext ? JSON.stringify(requestContext) : undefined,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() // 90 days
+      }
+    }
+  );
+
+  // 4. Find and complete matching tasks
   const listTasksQuery = `
-    query ListTasks($assignedTo: String!) {
+    query ListTasks($assignedTo: String!, $status: TaskStatus!, $taskType: TaskType!) {
       listTasks(filter: {
         assignedTo: { eq: $assignedTo }
-        status: { eq: "PENDING" }
-        taskType: { eq: "INFORMATION_UPDATE" }
+        status: { eq: $status }
+        taskType: { eq: $taskType }
       }) {
         items {
           id
@@ -377,10 +548,9 @@ async function handleAssociateDINEmail(data: any) {
 
   const tasksResult = await graphqlRequest<{ listTasks: { items: any[] } }>(
     listTasksQuery,
-    { assignedTo: professionalUserId }
+    { assignedTo: professionalUserId, status: 'PENDING', taskType: 'INFORMATION_UPDATE' }
   );
 
-  // Complete matching tasks
   for (const task of tasksResult.listTasks.items) {
     const metadata = task.metadata ? JSON.parse(task.metadata) : {};
     if (metadata.directorDIN === din && metadata.requestType === 'din-email-association') {
@@ -390,7 +560,10 @@ async function handleAssociateDINEmail(data: any) {
 
   return createResponse(200, {
     success: true,
-    message: `DIN ${din} has been associated with email ${email}`
+    message: `DIN ${din} has been associated with ${normalizedEmail}. When someone creates an account with this email, their profile will automatically be populated with the DIN.`,
+    status: 'PENDING',
+    userFound: false,
+    data: createdAssociation.createPendingDirector
   });
 }
 
@@ -566,6 +739,45 @@ async function handleProcessServiceRequest(data: any) {
 async function handleSubmitDirectorInfoByProfessional(data: any) {
   const { taskId, directorInfo, companiesForDisclosure, professionalUserId } = data;
 
+  // 0. VALIDATE INPUT
+  const requiredFields = [
+    'fullName', 'fatherName', 'dateOfBirth', 'din', 'pan', 'email',
+    'mobileNumber', 'residentialAddress', 'state', 'pincode',
+    'appointmentDate', 'designation', 'occupation'
+  ];
+
+  const validationErrors: string[] = [];
+
+  for (const field of requiredFields) {
+    if (!directorInfo[field]) {
+      validationErrors.push(`${field.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`);
+    }
+  }
+
+  if (!directorInfo.consentGiven) {
+    validationErrors.push('Consent for appointment is required');
+  }
+
+  if (!directorInfo.notDisqualified) {
+    validationErrors.push('Confirmation that director is not disqualified is required');
+  }
+
+  if (!directorInfo.noConflictOfInterest) {
+    validationErrors.push('Confirmation of no conflict of interest is required');
+  }
+
+  if (!companiesForDisclosure || companiesForDisclosure.length === 0) {
+    validationErrors.push('At least one company for interest disclosure is required');
+  }
+
+  if (validationErrors.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'Validation failed',
+      errors: validationErrors
+    });
+  }
+
   // 1. Get the task
   const getTaskQuery = `
     query GetTask($id: ID!) {
@@ -622,6 +834,33 @@ async function handleSubmitDirectorInfoByProfessional(data: any) {
 
 async function handleSubmitInterestDisclosureByAppointee(data: any) {
   const { taskId, interestDisclosure, appointeeUserId } = data;
+
+  // 0. VALIDATE INPUT
+  const validationErrors: string[] = [];
+
+  if (!interestDisclosure || !interestDisclosure.companies || interestDisclosure.companies.length === 0) {
+    validationErrors.push('No companies to disclose interest for');
+  } else {
+    for (const company of interestDisclosure.companies) {
+      if (!company.natureOfInterest) {
+        validationErrors.push(`Nature of interest is required for ${company.name || 'company'}`);
+      }
+      if (!company.shareholdingPercentage && company.shareholdingPercentage !== 0) {
+        validationErrors.push(`Shareholding percentage is required for ${company.name || 'company'}`);
+      }
+      if (!company.dateOfInterest) {
+        validationErrors.push(`Date of interest is required for ${company.name || 'company'}`);
+      }
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'Validation failed',
+      errors: validationErrors
+    });
+  }
 
   // 1. Get the task
   const getTaskQuery = `
@@ -821,7 +1060,7 @@ async function handleGetDocuments(data: any) {
         if (!assignment.entityId || !assignment.entityType) continue;
 
         const listDirectorAssociationsQuery = `
-          query ListDirectorAssociations($entityId: String!, $entityType: String!) {
+          query ListDirectorAssociations($entityId: String!, $entityType: DirectorAssociationEntityType!) {
             listDirectorAssociations(filter: {
               and: [
                 { entityId: { eq: $entityId } },
@@ -871,17 +1110,17 @@ async function handleGetDocuments(data: any) {
         items {
           id
           fileName
+          documentName
           fileKey
-          fileType
           fileSize
+          mimeType
           documentType
           uploadedBy
           uploadedAt
           serviceRequestId
           entityId
           entityType
-          metadata
-          tags
+          isPublic
         }
       }
     }
@@ -913,16 +1152,23 @@ async function handleGetSignatureUrl(data: any) {
     });
   }
 
-  // Extract userId from signature key (assuming format: signatures/{userId}/...)
+  // Extract userId from signature key
+  // Format can be: public/signatures/{userId}/... or signatures/{userId}/...
   const keyParts = signatureKey.split('/');
-  if (keyParts.length < 2 || keyParts[0] !== 'signatures') {
+  let signatureOwnerUserId: string;
+
+  if (keyParts[0] === 'public' && keyParts[1] === 'signatures' && keyParts.length >= 3) {
+    // Format: public/signatures/{userId}/...
+    signatureOwnerUserId = keyParts[2];
+  } else if (keyParts[0] === 'signatures' && keyParts.length >= 2) {
+    // Format: signatures/{userId}/...
+    signatureOwnerUserId = keyParts[1];
+  } else {
     return createResponse(400, {
       success: false,
-      message: 'Invalid signature key format'
+      message: 'Invalid signature key format. Expected: public/signatures/{userId}/... or signatures/{userId}/...'
     });
   }
-
-  const signatureOwnerUserId = keyParts[1];
 
   // Check if requesting user is the owner
   if (requestingUserId === signatureOwnerUserId) {
@@ -958,7 +1204,7 @@ async function handleGetSignatureUrl(data: any) {
     // Check if signature owner is associated with any of the professional's entities
     for (const assignment of assignmentsResult.listProfessionalAssignments.items) {
       const listDirectorAssociationsQuery = `
-        query ListDirectorAssociations($userId: String!, $entityId: String!, $entityType: String!) {
+        query ListDirectorAssociations($userId: String!, $entityId: String!, $entityType: DirectorAssociationEntityType!) {
           listDirectorAssociations(filter: {
             and: [
               { userId: { eq: $userId } },
@@ -998,5 +1244,643 @@ async function handleGetSignatureUrl(data: any) {
     success: false,
     message: 'Access denied: You do not have permission to view this signature',
     allowed: false
+  });
+}
+
+async function handleGetTaskDetails(data: any) {
+  const { taskId, userId } = data;
+
+  if (!taskId || !userId) {
+    return createResponse(400, {
+      success: false,
+      message: 'Missing taskId or userId'
+    });
+  }
+
+  // 1. Get the task
+  const getTaskQuery = `
+    query GetTask($id: ID!) {
+      getTask(id: $id) {
+        id
+        assignedTo
+        assignedBy
+        taskType
+        title
+        description
+        priority
+        status
+        dueDate
+        createdAt
+        completedAt
+        relatedEntityId
+        relatedEntityType
+        metadata
+      }
+    }
+  `;
+
+  const taskResult = await graphqlRequest<{ getTask: any }>(getTaskQuery, { id: taskId });
+  const task = taskResult.getTask;
+
+  if (!task) {
+    return createResponse(404, {
+      success: false,
+      message: 'Task not found'
+    });
+  }
+
+  // Verify user has access to this task
+  if (task.assignedTo !== userId) {
+    return createResponse(403, {
+      success: false,
+      message: 'Access denied: This task is not assigned to you'
+    });
+  }
+
+  // 2. Parse metadata
+  const metadata = task.metadata ? JSON.parse(task.metadata) : {};
+
+  // 3. Fetch related data based on metadata
+  let prepopulatedFormData: any = {};
+
+  // Get appointment data from metadata
+  const appointmentData = metadata.appointmentRequest || metadata.appointmentData || {};
+
+  // Fetch director profile if directorUserId is present
+  if (appointmentData.directorUserId) {
+    const listUserProfilesQuery = `
+      query ListUserProfiles($userId: String!) {
+        listUserProfiles(filter: { userId: { eq: $userId } }) {
+          items {
+            id
+            userId
+            displayName
+            email
+            din
+            pan
+            phoneNumber
+          }
+        }
+      }
+    `;
+
+    const profileResult = await graphqlRequest<{ listUserProfiles: { items: any[] } }>(
+      listUserProfilesQuery,
+      { userId: appointmentData.directorUserId }
+    );
+
+    if (profileResult.listUserProfiles.items.length > 0) {
+      const profile = profileResult.listUserProfiles.items[0];
+      prepopulatedFormData.fullName = profile.displayName || '';
+      prepopulatedFormData.email = profile.email || '';
+      prepopulatedFormData.din = profile.din || '';
+      prepopulatedFormData.pan = profile.pan || '';
+      prepopulatedFormData.mobileNumber = profile.phoneNumber || '';
+    }
+  }
+
+  // Fetch entity data if entityId and entityType are present
+  if (appointmentData.entityId && appointmentData.entityType) {
+    if (appointmentData.entityType === 'COMPANY') {
+      const getCompanyQuery = `
+        query GetCompany($id: ID!) {
+          getCompany(id: $id) {
+            id
+            companyName
+            cinNumber
+            authorizedCapital
+            paidUpCapital
+            registrationDate
+          }
+        }
+      `;
+
+      const companyResult = await graphqlRequest<{ getCompany: any }>(
+        getCompanyQuery,
+        { id: appointmentData.entityId }
+      );
+
+      if (companyResult.getCompany) {
+        prepopulatedFormData.companyName = companyResult.getCompany.companyName || '';
+        prepopulatedFormData.cin = companyResult.getCompany.cinNumber || '';
+        prepopulatedFormData.nominalCapital = companyResult.getCompany.authorizedCapital?.toString() || '';
+        prepopulatedFormData.paidUpCapital = companyResult.getCompany.paidUpCapital?.toString() || '';
+        prepopulatedFormData.companyRegistration = companyResult.getCompany.registrationDate || '';
+      }
+    } else if (appointmentData.entityType === 'LLP') {
+      const getLLPQuery = `
+        query GetLLP($id: ID!) {
+          getLLP(id: $id) {
+            id
+            llpName
+            llpIN
+            totalObligationOfContribution
+            registrationDate
+          }
+        }
+      `;
+
+      const llpResult = await graphqlRequest<{ getLLP: any }>(
+        getLLPQuery,
+        { id: appointmentData.entityId }
+      );
+
+      if (llpResult.getLLP) {
+        prepopulatedFormData.companyName = llpResult.getLLP.llpName || '';
+        prepopulatedFormData.cin = llpResult.getLLP.llpIN || '';
+        prepopulatedFormData.nominalCapital = llpResult.getLLP.totalObligationOfContribution?.toString() || '';
+        prepopulatedFormData.paidUpCapital = llpResult.getLLP.totalObligationOfContribution?.toString() || '';
+        prepopulatedFormData.companyRegistration = llpResult.getLLP.registrationDate || '';
+      }
+    }
+  }
+
+  // Add appointment data from metadata
+  prepopulatedFormData = {
+    ...prepopulatedFormData,
+    appointmentDate: appointmentData.appointmentDate || '',
+    designation: appointmentData.designation || 'DIRECTOR',
+    category: appointmentData.category || 'PROMOTER',
+    entityId: appointmentData.entityId,
+    entityType: appointmentData.entityType || 'COMPANY'
+  };
+
+  // 4. Determine available actions based on task type and workflow stage
+  const availableActions: string[] = [];
+
+  // Backend business logic for determining actions
+  if (task.title.includes('Associate DIN with Email')) {
+    availableActions.push('ASSOCIATE_DIN_EMAIL');
+  } else if (task.title.includes('Upload Documents for Director')) {
+    availableActions.push('COMPLETE_DOCUMENT_UPLOAD');
+  } else if (task.title.includes('Complete Director Information Form')) {
+    availableActions.push('FILL_DIRECTOR_INFO_FORM');
+  } else if (task.title.includes('Disclose Interest in Other Companies')) {
+    availableActions.push('FILL_INTEREST_DISCLOSURE');
+  } else if (task.title.includes('Generate Director Appointment Forms')) {
+    availableActions.push('GENERATE_FORMS');
+  } else if (task.title.includes('Complete Director Appointment Request')) {
+    availableActions.push('COMPLETE_TASK');
+  } else {
+    // Generic complete action for other tasks
+    availableActions.push('COMPLETE_TASK');
+  }
+
+  // 5. Return task with prepopulated data and available actions
+  return createResponse(200, {
+    success: true,
+    task: {
+      id: task.id,
+      assignedTo: task.assignedTo,
+      assignedBy: task.assignedBy,
+      taskType: task.taskType,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt,
+      relatedEntityId: task.relatedEntityId,
+      relatedEntityType: task.relatedEntityType,
+      metadata: metadata,
+      availableActions: availableActions
+    },
+    prepopulatedFormData: prepopulatedFormData,
+    appointmentData: appointmentData
+  });
+}
+
+// ============================================================================
+// CRUD OPERATIONS - COMPANY
+// ============================================================================
+
+async function handleCreateCompany(data: any) {
+  const {
+    cinNumber,
+    companyName,
+    rocName,
+    dateOfIncorporation,
+    emailId,
+    registeredAddress,
+    authorizedCapital,
+    paidUpCapital,
+    numberOfDirectors,
+    companyStatus,
+    companyType,
+    lastAnnualFilingDate,
+    financialYear,
+    agmDate
+  } = data;
+
+  // Validation
+  const validationErrors: string[] = [];
+
+  if (!cinNumber) {
+    validationErrors.push('CIN number is required');
+  }
+
+  if (!companyName) {
+    validationErrors.push('Company name is required');
+  }
+
+  if (numberOfDirectors && numberOfDirectors < 2) {
+    validationErrors.push('A company must have a minimum of 2 directors');
+  }
+
+  if (authorizedCapital > 0 && paidUpCapital > authorizedCapital) {
+    validationErrors.push('Paid up capital cannot exceed authorized capital');
+  }
+
+  if (validationErrors.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'Validation failed',
+      errors: validationErrors
+    });
+  }
+
+  // Create company
+  const createCompanyMutation = `
+    mutation CreateCompany($input: CreateCompanyInput!) {
+      createCompany(input: $input) {
+        id
+        cinNumber
+        companyName
+        companyType
+        companyStatus
+      }
+    }
+  `;
+
+  const result = await graphqlRequest<{ createCompany: any }>(
+    createCompanyMutation,
+    {
+      input: {
+        cinNumber,
+        companyName,
+        rocName: rocName || undefined,
+        dateOfIncorporation: dateOfIncorporation || undefined,
+        emailId: emailId || undefined,
+        registeredAddress: registeredAddress || undefined,
+        authorizedCapital: authorizedCapital || undefined,
+        paidUpCapital: paidUpCapital || undefined,
+        numberOfDirectors: numberOfDirectors || undefined,
+        companyStatus: companyStatus || 'ACTIVE',
+        companyType: companyType || 'PRIVATE',
+        lastAnnualFilingDate: lastAnnualFilingDate || undefined,
+        financialYear: financialYear || undefined,
+        agmDate: agmDate || undefined
+      }
+    }
+  );
+
+  return createResponse(200, {
+    success: true,
+    message: 'Company created successfully',
+    data: result.createCompany
+  });
+}
+
+// ============================================================================
+// CRUD OPERATIONS - LLP
+// ============================================================================
+
+async function handleCreateLLP(data: any) {
+  const {
+    llpIN,
+    llpName,
+    dateOfIncorporation,
+    emailId,
+    registeredAddress,
+    totalContribution,
+    numberOfPartners,
+    llpStatus,
+    lastAnnualFilingDate,
+    financialYear
+  } = data;
+
+  // Validation
+  const validationErrors: string[] = [];
+
+  if (!llpIN) {
+    validationErrors.push('LLPIN is required');
+  }
+
+  if (!llpName) {
+    validationErrors.push('LLP name is required');
+  }
+
+  if (numberOfPartners && numberOfPartners < 2) {
+    validationErrors.push('An LLP must have a minimum of 2 designated partners');
+  }
+
+  if (validationErrors.length > 0) {
+    return createResponse(400, {
+      success: false,
+      message: 'Validation failed',
+      errors: validationErrors
+    });
+  }
+
+  // Create LLP
+  const createLLPMutation = `
+    mutation CreateLLP($input: CreateLLPInput!) {
+      createLLP(input: $input) {
+        id
+        llpIN
+        llpName
+        llpStatus
+      }
+    }
+  `;
+
+  const result = await graphqlRequest<{ createLLP: any }>(
+    createLLPMutation,
+    {
+      input: {
+        llpIN,
+        llpName,
+        dateOfIncorporation: dateOfIncorporation || undefined,
+        emailId: emailId || undefined,
+        registeredAddress: registeredAddress || undefined,
+        totalContribution: totalContribution || undefined,
+        numberOfPartners: numberOfPartners || undefined,
+        llpStatus: llpStatus || 'ACTIVE',
+        lastAnnualFilingDate: lastAnnualFilingDate || undefined,
+        financialYear: financialYear || undefined
+      }
+    }
+  );
+
+  return createResponse(200, {
+    success: true,
+    message: 'LLP created successfully',
+    data: result.createLLP
+  });
+}
+
+// ============================================================================
+// DATA FETCHING OPERATIONS
+// ============================================================================
+
+async function handleGetUserProfile(data: any) {
+  const { userId, email, din } = data;
+
+  if (!userId && !email && !din) {
+    return createResponse(400, {
+      success: false,
+      message: 'Either userId, email, or din is required'
+    });
+  }
+
+  let query: string;
+  let variables: any;
+
+  if (userId) {
+    query = `
+      query ListUserProfiles($userId: String!) {
+        listUserProfiles(filter: { userId: { eq: $userId } }) {
+          items {
+            id
+            userId
+            email
+            displayName
+            din
+            dinStatus
+            role
+            phoneNumber
+            panNumber
+            aadhaarNumber
+            dateOfBirth
+            address
+            city
+            state
+            pincode
+            signatureKey
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+    variables = { userId };
+  } else if (email) {
+    query = `
+      query ListUserProfiles($email: String!) {
+        listUserProfiles(filter: { email: { eq: $email } }) {
+          items {
+            id
+            userId
+            email
+            displayName
+            din
+            dinStatus
+            role
+            phoneNumber
+            panNumber
+            aadhaarNumber
+            dateOfBirth
+            address
+            city
+            state
+            pincode
+            signatureKey
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+    variables = { email };
+  } else {
+    query = `
+      query ListUserProfiles($din: String!) {
+        listUserProfiles(filter: { din: { eq: $din } }) {
+          items {
+            id
+            userId
+            email
+            displayName
+            din
+            dinStatus
+            role
+            phoneNumber
+            panNumber
+            aadhaarNumber
+            dateOfBirth
+            address
+            city
+            state
+            pincode
+            signatureKey
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    `;
+    variables = { din };
+  }
+
+  const result = await graphqlRequest<{ listUserProfiles: { items: any[] } }>(
+    query,
+    variables
+  );
+
+  const userProfile = result.listUserProfiles.items.length > 0
+    ? result.listUserProfiles.items[0]
+    : null;
+
+  return createResponse(200, {
+    success: true,
+    data: userProfile
+  });
+}
+
+async function handleGetServiceRequests(data: any) {
+  const { directorId, processedBy, status, serviceType } = data;
+
+  // Build filter conditions
+  const filterConditions: any[] = [];
+
+  if (directorId) {
+    filterConditions.push({ directorId: { eq: directorId } });
+  }
+
+  if (processedBy) {
+    filterConditions.push({ processedBy: { eq: processedBy } });
+  }
+
+  if (status) {
+    filterConditions.push({ status: { eq: status } });
+  }
+
+  if (serviceType) {
+    filterConditions.push({ serviceType: { eq: serviceType } });
+  }
+
+  // Build the filter
+  let filter = {};
+  if (filterConditions.length === 1) {
+    filter = filterConditions[0];
+  } else if (filterConditions.length > 1) {
+    filter = { and: filterConditions };
+  }
+
+  const query = `
+    query ListServiceRequests($filter: ModelServiceRequestFilterInput) {
+      listServiceRequests(filter: $filter) {
+        items {
+          id
+          serviceType
+          requestData
+          status
+          directorId
+          processedBy
+          priority
+          createdAt
+          updatedAt
+          completedAt
+          comments
+        }
+      }
+    }
+  `;
+
+  const result = await graphqlRequest<{ listServiceRequests: { items: any[] } }>(
+    query,
+    { filter: Object.keys(filter).length > 0 ? filter : undefined }
+  );
+
+  return createResponse(200, {
+    success: true,
+    data: result.listServiceRequests.items
+  });
+}
+
+async function handleGetCompany(data: any) {
+  const { id } = data;
+
+  if (!id) {
+    return createResponse(400, {
+      success: false,
+      message: 'Company ID (CIN) is required'
+    });
+  }
+
+  const query = `
+    query GetCompany($id: ID!) {
+      getCompany(id: $id) {
+        id
+        cinNumber
+        companyName
+        companyType
+        companyStatus
+        rocName
+        dateOfIncorporation
+        emailId
+        registeredAddress
+        authorizedCapital
+        paidUpCapital
+        numberOfDirectors
+        lastAnnualFilingDate
+        financialYear
+        agmDate
+        createdAt
+        updatedAt
+      }
+    }
+  `;
+
+  const result = await graphqlRequest<{ getCompany: any }>(
+    query,
+    { id }
+  );
+
+  return createResponse(200, {
+    success: true,
+    data: result.getCompany
+  });
+}
+
+async function handleGetLLP(data: any) {
+  const { id } = data;
+
+  if (!id) {
+    return createResponse(400, {
+      success: false,
+      message: 'LLP ID (LLPIN) is required'
+    });
+  }
+
+  const query = `
+    query GetLLP($id: ID!) {
+      getLLP(id: $id) {
+        id
+        llpIN
+        llpName
+        llpStatus
+        dateOfIncorporation
+        emailId
+        registeredAddress
+        totalContribution
+        numberOfPartners
+        lastAnnualFilingDate
+        financialYear
+        createdAt
+        updatedAt
+      }
+    }
+  `;
+
+  const result = await graphqlRequest<{ getLLP: any }>(
+    query,
+    { id }
+  );
+
+  return createResponse(200, {
+    success: true,
+    data: result.getLLP
   });
 }

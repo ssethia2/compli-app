@@ -22,34 +22,23 @@ export interface CreateServiceRequestParams {
  * Get service requests with optional filters
  */
 export const getServiceRequests = async (filter: ServiceRequestFilter) => {
-  let queryFilter: any = {};
+  const { getServiceRequestsFromLambda } = await import('./lambda');
 
-  if (filter.directorId) {
-    queryFilter.directorId = { eq: filter.directorId };
+  const result = await getServiceRequestsFromLambda({
+    directorId: filter.directorId,
+    processedBy: filter.processedBy,
+    status: filter.status,
+    serviceType: filter.serviceType
+  });
+
+  if (!result.success) {
+    return { data: [], errors: [result.message || 'Failed to fetch service requests'] };
   }
 
-  if (filter.processedBy) {
-    queryFilter.processedBy = { eq: filter.processedBy };
-  }
-
-  if (filter.status) {
-    queryFilter.status = { eq: filter.status };
-  }
-
-  if (filter.serviceType) {
-    queryFilter.serviceType = { eq: filter.serviceType };
-  }
-
-  // Combine filters if multiple exist
-  if (Object.keys(queryFilter).length > 1) {
-    const conditions = Object.entries(queryFilter).map(([key, value]) => ({ [key]: value }));
-    queryFilter = { and: conditions };
-  }
-
-  const result = await client.models.ServiceRequest.list({ filter: queryFilter });
+  const data = result.data;
 
   // Sort by creation date (newest first) and priority
-  const sortedData = result.data.sort((a, b) => {
+  const sortedData = data.sort((a, b) => {
     const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
     const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3;
     const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3;

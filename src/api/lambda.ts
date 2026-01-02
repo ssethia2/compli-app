@@ -124,8 +124,11 @@ export async function processServiceRequest(data: {
 export async function associateDINEmail(data: {
   din: string;
   email: string;
-  entityId: string;
+  entityId?: string;
+  entityType?: 'COMPANY' | 'LLP';
   professionalUserId: string;
+  directorName?: string;
+  requestContext?: any;
 }) {
   return callLambda('associateDINEmail', data);
 }
@@ -206,4 +209,78 @@ export async function getSignatureUrl(data: {
   requestingUserId: string;
 }) {
   return callLambda('getSignatureUrl', data);
+}
+
+export async function getTaskDetails(data: {
+  taskId: string;
+  userId: string;
+}) {
+  return callLambda('getTaskDetails', data);
+}
+
+// ============================================================================
+// CRUD OPERATIONS
+// ============================================================================
+
+export async function createCompany(data: {
+  cinNumber: string;
+  companyName: string;
+  rocName?: string;
+  dateOfIncorporation?: string;
+  emailId?: string;
+  registeredAddress?: string;
+  authorizedCapital?: number;
+  paidUpCapital?: number;
+  numberOfDirectors?: number;
+  companyStatus?: 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF' | 'AMALGAMATED';
+  companyType?: 'PRIVATE' | 'PUBLIC' | 'ONE_PERSON' | 'SECTION_8' | 'GOVERNMENT' | 'NBFC' | 'NIDHI' | 'IFSC';
+  lastAnnualFilingDate?: string;
+  financialYear?: string;
+  agmDate?: string;
+}) {
+  return callLambda('createCompany', data);
+}
+
+export async function createLLP(data: {
+  llpIN: string;
+  llpName: string;
+  dateOfIncorporation?: string;
+  emailId?: string;
+  registeredAddress?: string;
+  totalContribution?: number;
+  numberOfPartners?: number;
+  llpStatus?: 'ACTIVE' | 'INACTIVE' | 'UNDER_PROCESS' | 'STRUCK_OFF';
+  lastAnnualFilingDate?: string;
+  financialYear?: string;
+}) {
+  return callLambda('createLLP', data);
+}
+
+export async function getUserProfile(data: {
+  userId?: string;
+  email?: string;
+  din?: string;
+}) {
+  return callLambda('getUserProfile', data);
+}
+
+export async function getCompany(data: {
+  id: string;
+}) {
+  return callLambda('getCompany', data);
+}
+
+export async function getLLP(data: {
+  id: string;
+}) {
+  return callLambda('getLLP', data);
+}
+
+export async function getServiceRequestsFromLambda(data: {
+  directorId?: string;
+  processedBy?: string;
+  status?: string;
+  serviceType?: string;
+}) {
+  return callLambda('getServiceRequests', data);
 }

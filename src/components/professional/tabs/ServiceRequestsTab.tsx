@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getServiceRequests, updateServiceRequestStatus, getUserProfileByUserId } from '../../../api';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../../../amplify/data/resource';
-
-const client = generateClient<Schema>();
+import { getCompany, getLLP, getUserProfile } from '../../../api/lambda';
 
 interface ServiceRequestsTabProps {
   onDirectorInfoFormOpen?: (taskId: string, appointmentData: any) => void;
@@ -254,8 +251,8 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
 
       if (cinNumber) {
         try {
-          const companyResult = await client.models.Company.get({ id: cinNumber });
-          if (companyResult.data) {
+          const companyResult = await getCompany({ id: cinNumber });
+          if (companyResult.success && companyResult.data) {
             details.entityName = companyResult.data.companyName;
             details.entityType = 'Company';
             details.entityIdentifier = companyResult.data.cinNumber;
@@ -265,8 +262,8 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
         }
       } else if (llpIN) {
         try {
-          const llpResult = await client.models.LLP.get({ id: llpIN });
-          if (llpResult.data) {
+          const llpResult = await getLLP({ id: llpIN });
+          if (llpResult.success && llpResult.data) {
             details.entityName = llpResult.data.llpName;
             details.entityType = 'LLP';
             details.entityIdentifier = llpResult.data.llpIN;
@@ -280,12 +277,10 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ onDirectorInfoF
       const din = data.din || data.selectedDirector?.din || data.newDirector?.din;
       if (din) {
         try {
-          const directorResult = await client.models.UserProfile.list({
-            filter: { din: { eq: din } }
-          });
+          const directorResult = await getUserProfile({ din });
 
-          if (directorResult.data && directorResult.data.length > 0) {
-            const director = directorResult.data[0];
+          if (directorResult.success && directorResult.data) {
+            const director = directorResult.data;
             details.directorName = director.displayName || director.email;
             details.directorEmail = director.email;
             details.directorDIN = director.din;
