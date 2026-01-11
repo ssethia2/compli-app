@@ -55,16 +55,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   }, [documents, showUploader, groupByUser]);
 
-  const downloadDocument = async (document: any) => {
+  const downloadDocument = async (doc: any) => {
     try {
-      setDownloadingIds(prev => new Set(prev).add(document.id));
+      setDownloadingIds(prev => new Set(prev).add(doc.id));
 
-      const signedUrl = await getDocumentUrl(document.fileKey);
+      const signedUrl = await getDocumentUrl(doc.fileKey);
 
       // Create a temporary link and trigger download
       const link = document.createElement('a');
       link.href = signedUrl.url.toString();
-      link.download = document.fileName;
+      link.download = doc.fileName;
       link.target = '_blank'; // Open in new tab if direct download fails
       document.body.appendChild(link);
       link.click();
@@ -75,19 +75,19 @@ const DocumentList: React.FC<DocumentListProps> = ({
     } finally {
       setDownloadingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(document.id);
+        newSet.delete(doc.id);
         return newSet;
       });
     }
   };
 
-  const deleteDocument = async (document: any) => {
-    if (!window.confirm(`Are you sure you want to delete "${document.fileName}"?`)) {
+  const deleteDocument = async (doc: any) => {
+    if (!window.confirm(`Are you sure you want to delete "${doc.fileName}"?`)) {
       return;
     }
 
     try {
-      await deleteDocumentMutation.mutateAsync(document.id);
+      await deleteDocumentMutation.mutateAsync(doc.id);
 
       if (onDocumentDeleted) {
         onDocumentDeleted(document.id);

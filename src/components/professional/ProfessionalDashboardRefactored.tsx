@@ -97,7 +97,10 @@ const ProfessionalDashboardRefactored: React.FC = () => {
   };
 
   const handleDirectorInfoFormTask = (taskData: any) => {
-    setDirectorInfoFormData(taskData.appointmentData);
+    setDirectorInfoFormData({
+      ...taskData.appointmentData,
+      taskId: taskData.taskId || taskData.id
+    });
     setShowDirectorInfoForm(true);
   };
 
@@ -287,10 +290,23 @@ const ProfessionalDashboardRefactored: React.FC = () => {
             setShowDirectorInfoForm(false);
             setDirectorInfoFormData(null);
           }}
-          onSubmit={(directorInfo) => {
-            console.log('Director info submitted:', directorInfo);
-            setShowDirectorInfoForm(false);
-            setDirectorInfoFormData(null);
+          onSubmit={async (directorInfo) => {
+            try {
+              const { submitDirectorInfoByProfessional } = await import('../../api/lambda');
+              await submitDirectorInfoByProfessional({
+                taskId: directorInfoFormData?.taskId || '',
+                directorInfo,
+                companiesForDisclosure: directorInfo.companiesForDisclosure || [],
+                professionalUserId: user?.username || ''
+              });
+              alert('Director information submitted successfully!');
+              setShowDirectorInfoForm(false);
+              setDirectorInfoFormData(null);
+              window.location.reload(); // Refresh to see updated tasks
+            } catch (error) {
+              console.error('Error submitting director info:', error);
+              alert('Failed to submit director information');
+            }
           }}
           mode="professional"
         />

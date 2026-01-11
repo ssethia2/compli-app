@@ -45,6 +45,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({
               directorDIN={task.directorDIN}
               directorName={task.directorName}
               entityName={task.entityName}
+              entityId={task.entityId}
               directorInfoDocument={task.directorInfoDocument}
               requiredForms={task.requiredForms || ['DIR-2', 'DIR-8', 'MBP-1']}
               professionalUserId={currentUserId}

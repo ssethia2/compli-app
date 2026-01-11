@@ -99,6 +99,7 @@ const PendingTasks: React.FC<PendingTasksProps> = ({ userId, userRole: _userRole
           directorDIN: metadata.directorDIN,
           directorName: metadata.directorName,
           entityName: metadata.entityName,
+          entityId: metadata.entityId || task.relatedEntityId,
           directorInfoDocument: metadata.directorInfoDocument,
           requiredForms: metadata.requiredForms
         };

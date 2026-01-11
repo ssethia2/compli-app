@@ -284,3 +284,249 @@ export async function getServiceRequestsFromLambda(data: {
 }) {
   return callLambda('getServiceRequests', data);
 }
+
+// ============================================================================
+// DIRECTOR DASHBOARD OPERATIONS
+// ============================================================================
+
+export async function getDirectorDashboardData(data: {
+  userId?: string;
+  username?: string;
+}) {
+  return callLambda('getDirectorDashboardData', data);
+}
+
+export async function updateUserDIN(data: {
+  userProfileId: string;
+  din: string;
+  dinStatus?: string;
+}) {
+  return callLambda('updateUserDIN', data);
+}
+
+export async function updateUserProfile(data: {
+  userProfileId: string;
+  updates: any;
+}) {
+  return callLambda('updateUserProfile', data);
+}
+
+export async function checkAndClaimPendingDIN(data: {
+  email: string;
+  userId: string;
+  userProfileId: string;
+}) {
+  return callLambda('checkAndClaimPendingDIN', data);
+}
+
+export async function createDirectorKYCRequest(data: {
+  directorUserId: string;
+  kycData: any;
+}) {
+  return callLambda('createDirectorKYCRequest', data);
+}
+
+// ============================================================================
+// PROFESSIONAL DASHBOARD OPERATIONS
+// ============================================================================
+
+export async function getProfessionalDashboardData(data: {
+  professionalId: string;
+}) {
+  return callLambda('getProfessionalDashboardData', data);
+}
+
+export async function getServiceRequestWithDirectors(data: {
+  serviceRequestId: string;
+}) {
+  return callLambda('getServiceRequestWithDirectors', data);
+}
+
+export async function updateServiceRequestStatus(data: {
+  serviceRequestId: string;
+  status: string;
+  comments?: string;
+}) {
+  return callLambda('updateServiceRequestStatus', data);
+}
+
+export async function getDirectorSignatures(data: {
+  directorUserIds: string[];
+}) {
+  return callLambda('getDirectorSignatures', data);
+}
+
+export async function createProfessionalTask(data: {
+  assignedTo: string;
+  professionalId: string;
+  taskType: string;
+  title: string;
+  description?: string;
+  priority?: string;
+  dueDate?: string;
+  relatedEntityId?: string;
+  relatedEntityType?: 'COMPANY' | 'LLP';
+  metadata?: any;
+}) {
+  return callLambda('createProfessionalTask', data);
+}
+
+export async function assignProfessionalToEntity(data: {
+  professionalId: string;
+  entityId: string;
+  entityType: 'COMPANY' | 'LLP';
+  role?: string;
+}) {
+  return callLambda('assignProfessionalToEntity', data);
+}
+
+// ============================================================================
+// FORM GENERATOR OPERATIONS
+// ============================================================================
+
+export async function getDirectorInfoDocument(data: {
+  directorDIN: string;
+}) {
+  return callLambda('getDirectorInfoDocument', data);
+}
+
+export async function createGeneratedForm(data: {
+  fileName: string;
+  documentName?: string;
+  fileKey: string;
+  fileSize?: number;
+  professionalUserId: string;
+  entityId?: string;
+  entityType?: 'COMPANY' | 'LLP';
+}) {
+  return callLambda('createGeneratedForm', data);
+}
+
+// ============================================================================
+// ADMIN OPERATIONS
+// ============================================================================
+
+export async function listAssetTemplates(data: {
+  isActive?: boolean;
+}) {
+  return callLambda('listAssetTemplates', data);
+}
+
+export async function createAssetTemplate(data: {
+  templateName: string;
+  templateType: string;
+  fileKey: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  description?: string;
+  version?: string;
+  metadata?: any;
+  createdBy?: string;
+}) {
+  return callLambda('createAssetTemplate', data);
+}
+
+export async function updateAssetTemplate(data: {
+  id: string;
+  updates: any;
+}) {
+  return callLambda('updateAssetTemplate', data);
+}
+
+export async function deleteAssetTemplate(data: {
+  id: string;
+}) {
+  return callLambda('deleteAssetTemplate', data);
+}
+
+export async function adminLogin(data: {
+  adminCode: string;
+}) {
+  return callLambda('adminLogin', data);
+}
+
+// ============================================================================
+// ASSOCIATE DIRECTOR OPERATIONS
+// ============================================================================
+
+export async function findOrCreateDirectorByEmail(data: {
+  email: string;
+  din?: string;
+  displayName?: string;
+}) {
+  return callLambda('findOrCreateDirectorByEmail', data);
+}
+
+export async function listEntitiesForAssociation() {
+  return callLambda('listEntitiesForAssociation', {});
+}
+
+export async function createDirectorAssociation(data: {
+  userId: string;
+  entityId: string;
+  entityType: 'COMPANY' | 'LLP';
+  associationType?: string;
+  din?: string;
+  originalAppointmentDate?: string;
+  appointmentDate?: string;
+  cessationDate?: string;
+}) {
+  return callLambda('createDirectorAssociation', data);
+}
+
+export async function checkExistingAssociation(data: {
+  userId: string;
+  entityId: string;
+}) {
+  return callLambda('checkExistingAssociation', data);
+}
+
+// ============================================================================
+// DATA LIST OPERATIONS
+// ============================================================================
+
+export async function listCompanies(data?: {
+  filter?: any;
+}) {
+  return callLambda('listCompanies', data || {});
+}
+
+export async function listLLPs(data?: {
+  filter?: any;
+}) {
+  return callLambda('listLLPs', data || {});
+}
+
+export async function listDirectorAssociations(data?: {
+  filter?: any;
+}) {
+  return callLambda('listDirectorAssociations', data || {});
+}
+
+export async function listProfessionalAssignments(data?: {
+  filter?: any;
+}) {
+  return callLambda('listProfessionalAssignments', data || {});
+}
+
+export async function listTasks(data?: {
+  filter?: any;
+}) {
+  return callLambda('listTasks', data || {});
+}
+
+export async function getPendingDirectors(data?: {
+  email?: string;
+  din?: string;
+  status?: string;
+}) {
+  return callLambda('getPendingDirectors', data || {});
+}
+
+export async function updatePendingDirector(data: {
+  id: string;
+  updates: any;
+}) {
+  return callLambda('updatePendingDirector', data);
+}

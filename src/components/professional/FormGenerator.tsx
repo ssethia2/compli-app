@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { generateClient } from 'aws-amplify/data';
 import { uploadData, getUrl } from 'aws-amplify/storage';
-import type { Schema } from '../../../amplify/data/resource';
-
-const client = generateClient<Schema>();
+import { createGeneratedForm } from '../../api/lambda';
 
 interface FormGeneratorProps {
   directorInfoDocument?: {
@@ -14,6 +11,7 @@ interface FormGeneratorProps {
   directorDIN: string;
   directorName: string;
   entityName: string;
+  entityId: string;
   requiredForms: string[];
   professionalUserId: string;
   onFormsGenerated: () => void;
@@ -24,6 +22,7 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
   directorDIN,
   directorName,
   entityName,
+  entityId,
   requiredForms,
   professionalUserId,
   onFormsGenerated
@@ -33,86 +32,31 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
   const [showPreview, setShowPreview] = useState(false);
 
   const loadDirectorInfo = async () => {
-    if (!directorInfoDocument) {
+    if (!directorInfoDocument || !directorInfoDocument.fileKey) {
       alert('Director information document not found');
       return;
     }
 
     try {
-      // Find the document that contains the director information
-      const documents = await client.models.Document.list({
-        filter: {
-          and: [
-            { fileName: { contains: 'DirectorInfo' } },
-            { fileName: { contains: directorDIN } }
-          ]
+      // Fetch the actual JSON content from S3 using the fileKey directly
+      const signedUrl = await getUrl({
+        key: directorInfoDocument.fileKey,
+        options: {
+          expiresIn: 3600, // 1 hour
+          validateObjectExistence: false
         }
       });
 
-      if (documents.data.length === 0) {
-        alert('Director information document not found in database');
-        return;
-      }
+      // Fetch the JSON content
+      const response = await fetch(signedUrl.url.toString());
+      const directorInfo = await response.json();
 
-      // Get the most recent director info document
-      const latestDoc = documents.data.sort((a, b) => 
-        new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-      )[0];
-
-      console.log('Found director info document:', latestDoc);
-
-      try {
-        // Fetch the actual JSON content from S3
-        const signedUrl = await getUrl({
-          key: latestDoc.fileKey,
-          options: {
-            expiresIn: 3600, // 1 hour
-            validateObjectExistence: false
-          }
-        });
-
-        // Fetch the JSON content
-        const response = await fetch(signedUrl.url.toString());
-        const directorInfo = await response.json();
-        
-        console.log('Loaded director info from S3:', directorInfo);
-        setDirectorInfo(directorInfo);
-        setShowPreview(true);
-        return;
-      } catch (error) {
-        console.warn('Could not load director info from S3, using fallback:', error);
-      }
-
-      // Fallback: create placeholder data if S3 fetch fails
-      const directorInfo = {
-        fullName: directorName,
-        din: directorDIN,
-        fatherName: 'Father Name (from stored document)',
-        dateOfBirth: '1990-01-01',
-        nationality: 'Indian', 
-        email: `${directorName.toLowerCase().replace(' ', '.')}@example.com`,
-        mobileNumber: '9876543210',
-        residentialAddress: `Director Address - ${directorName}`,
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pan: 'ABCDE1234F',
-        occupation: 'Business Professional',
-        existingDirectorships: 'Previously submitted companies list',
-        existingPositions: 'Previously submitted positions list', 
-        professionalMembership: 'Previously submitted membership details',
-        nominalCapital: '1,00,000',
-        paidUpCapital: '1,00,000',
-        placeOfSigning: 'Mumbai',
-        otherCompanyInterests: [],
-        // Note: This is fallback data when S3 fetch fails
-        _note: 'This is fallback data - actual data should come from S3'
-      };
-      
+      console.log('Loaded director info from S3:', directorInfo);
       setDirectorInfo(directorInfo);
       setShowPreview(true);
     } catch (error) {
-      console.error('Error loading director info:', error);
-      alert('Failed to load director information');
+      console.error('Could not load director info from S3:', error);
+      alert('Failed to load director information. Please try again.');
     }
   };
 
@@ -145,7 +89,7 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
         if (formContent) {
           const timestamp = Date.now();
           const fileName = `${formType}_${directorDIN}_${timestamp}.txt`;
-          const fileKey = `public/generated-forms/${fileName}`;
+          const fileKey = `entities/${entityId}/generated-forms/${fileName}`;
           
           // Upload the form content to S3
           await uploadData({
@@ -153,19 +97,15 @@ const FormGenerator: React.FC<FormGeneratorProps> = ({
             data: new Blob([formContent], { type: 'text/plain' }),
           }).result;
 
-          // Create the document record
-          await client.models.Document.create({
+          // Create the document record via backend API
+          await createGeneratedForm({
             fileName: fileName,
             documentName: `${formType} Form - ${directorName}`,
             fileKey: fileKey,
             fileSize: formContent.length,
-            mimeType: 'text/plain',
-            uploadedBy: professionalUserId,
-            uploadedAt: new Date().toISOString(),
-            documentType: 'COMPLIANCE_CERTIFICATE',
-            entityId: directorInfo.entityId,
-            entityType: directorInfo.entityType || 'COMPANY',
-            isPublic: false
+            professionalUserId: professionalUserId,
+            entityId: entityId,
+            entityType: 'COMPANY' // TODO: Get from task metadata
           });
         }
       }

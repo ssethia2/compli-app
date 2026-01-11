@@ -796,89 +796,22 @@ const ProfessionalDashboard: React.FC = () => {
   // Handle DirectorInfoForm submission by professionals
   const handleDirectorInfoSubmit = async (directorInfo: any) => {
     try {
-      // Create the file key and JSON content
-      const timestamp = Date.now();
-      const fileKey = `public/director-info/${user?.username}/${directorInfo.din}_${timestamp}.json`;
-      const jsonContent = JSON.stringify(directorInfo, null, 2);
-      const fileName = `DirectorInfo_${directorInfo.din}_${timestamp}.json`;
-
-      // Upload the JSON data to S3
-      await uploadData({
-        key: fileKey,
-        data: new Blob([jsonContent], { type: 'application/json' }),
-      }).result;
-
-      // Store the director information document record
-      const directorInfoDoc = await client.models.Document.create({
-        fileName: fileName,
-        documentName: `Director Information - ${directorInfo.fullName || 'Unknown Director'}`,
-        fileKey: fileKey,
-        fileSize: jsonContent.length,
-        mimeType: 'application/json',
-        uploadedBy: user?.username || '',
-        uploadedAt: new Date().toISOString(),
-        documentType: 'COMPLIANCE_CERTIFICATE',
-        entityId: directorInfo.entityId,
-        entityType: directorInfo.entityType,
-        isPublic: false
-      });
-
-      // Complete the professional's DirectorInfoForm task or update service request
-      if (currentDirectorInfoTaskId) {
-        if (currentDirectorInfoTaskId.startsWith('service-request-')) {
-          // This is from a service request, update the service request status
-          const serviceRequestId = currentDirectorInfoTaskId.replace('service-request-', '');
-          await client.models.ServiceRequest.update({
-            id: serviceRequestId,
-            status: 'COMPLETED',
-            updatedAt: new Date().toISOString(),
-            comments: 'Director information form completed and appointment forms generated'
-          });
-        } else {
-          // Regular task completion
-          await client.models.Task.update({
-            id: currentDirectorInfoTaskId,
-            status: 'COMPLETED',
-            completedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
-        }
-      }
-
-      // Create form generation task for the same professional
-      await client.models.Task.create({
-        assignedTo: user?.username || '',
-        assignedBy: user?.username,
-        taskType: 'FORM_COMPLETION',
-        title: 'Generate Director Appointment Forms',
-        description: `Director information has been completed for ${directorInfo.fullName} (DIN: ${directorInfo.din}) at ${directorInfo.companyName}. Please generate and prepare DIR-2, DIR-8, and MBP-1 forms for submission to authorities.`,
-        priority: 'HIGH',
-        status: 'PENDING',
-        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-        relatedEntityId: directorInfo.entityId,
-        relatedEntityType: directorInfo.entityType,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        metadata: JSON.stringify({
-          directorDIN: directorInfo.din,
-          directorName: directorInfo.fullName,
-          entityName: directorInfo.companyName,
-          directorInfoDocument: {
-            fileName: directorInfoDoc.data?.fileName,
-            fileKey: directorInfoDoc.data?.fileKey,
-            documentType: directorInfoDoc.data?.documentType
-          },
-          requiredForms: ['DIR-2', 'DIR-8', 'MBP-1']
-        })
+      const { submitDirectorInfoByProfessional } = await import('../../api/lambda');
+      await submitDirectorInfoByProfessional({
+        taskId: currentDirectorInfoTaskId || directorInfo.taskId || '',
+        directorInfo,
+        companiesForDisclosure: directorInfo.companiesForDisclosure || [],
+        professionalUserId: user?.username || ''
       });
 
       // Close the form
       setShowDirectorInfoForm(false);
       setDirectorInfoFormData(null);
       setCurrentDirectorInfoTaskId(null);
-      
-      alert('Director information has been submitted successfully! You can now generate the DIR-2, DIR-8, and MBP-1 forms.');
-      
+
+      alert('Director information submitted successfully! The task has been assigned to the director for interest disclosure.');
+      window.location.reload(); // Refresh to see updated tasks
+
     } catch (error) {
       console.error('Error submitting director info:', error);
       alert('Failed to submit director information. Please try again.');
@@ -1240,6 +1173,7 @@ const ProfessionalDashboard: React.FC = () => {
                         directorDIN={task.directorDIN}
                         directorName={task.directorName}
                         entityName={task.entityName}
+                        entityId={task.entityId}
                         directorInfoDocument={task.directorInfoDocument}
                         requiredForms={task.requiredForms || ['DIR-2', 'DIR-8', 'MBP-1']}
                         professionalUserId={user?.username || ''}

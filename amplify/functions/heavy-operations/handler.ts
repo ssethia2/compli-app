@@ -130,7 +130,7 @@ async function handleGenerateDirectorForms(data: any) {
           type: 'Document',
           fileName: `${formType}_${directorDIN}_${entityId}.pdf`,
           documentName: `${formType} - ${director.displayName || 'Director'}`,
-          fileKey: `generated-forms/${entityId}/${formType}_${directorDIN}_${Date.now()}.pdf`,
+          fileKey: `entities/${entityId}/generated-forms/${formType}_${directorDIN}_${Date.now()}.pdf`,
           fileSize: 0, // TODO: actual file size after PDF generation
           mimeType: 'application/pdf',
           uploadedBy: 'SYSTEM',
